@@ -68,9 +68,14 @@ struct SirFont : public SirBase
 		}
 	};
 
-	void ModifySize(std::size_t mod_size)
+	void ReduceKanjiSize(std::size_t mod_size)
 	{
 		for (auto& n : nodes) {
+			// skip ansi & jp symbols
+			if (n->keycode[1] == 0 || (uint8_t)n->keycode[1] == 0x81 || (uint8_t)n->keycode[1] == 0x84) {
+				continue;
+			}
+
 			for (int i = 0; i < 2; i++) {
 				auto max_value = std::max<uint8_t>(n->wsize[i], n->hsize[i]);
 				auto ratio = (max_value * 100 / mod_size) * 0.01f;

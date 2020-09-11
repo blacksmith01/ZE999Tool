@@ -15,8 +15,8 @@ struct BMFont
 		std::size_t stretchH;
 		bool smooth;
 		bool aa;
-		std::array<std::size_t, 4> padding;
-		std::array<std::size_t, 2> spacing;
+		std::array<std::size_t, 4> padding; // Top-Right-Bottom-Left
+		std::array<std::size_t, 2> spacing; // Width-Height
 		std::size_t outline;
 	};
 	struct Common
@@ -55,18 +55,26 @@ struct BMFont
 	Common common;
 	std::vector<Page> pages;
 	std::vector<Char> chars;
+	bool force_offsets_to_zero;
+
+	int GetCharMinYoffset() const
+	{
+		if (chars.empty())
+			return 0;
+
+		int min_yoffset = chars.front().yoffset;
+		for (auto& ch : chars) {
+			min_yoffset = std::min(min_yoffset, ch.yoffset);
+		}
+		return min_yoffset;
+	}
 
 	std::size_t GetCharMaxWidthForRender() const
 	{
 		std::size_t max_width = 0;
 		for (auto& ch : chars) {
-			std::size_t w = 0;
-			if (ch.xoffset < 0) {
-				w = std::max(ch.width, ch.xadvance);
-			}
-			else {
-				w = ch.xadvance;
-			}
+			auto xoffset_mod = std::max((int)info.padding[3] + ch.xoffset, 0);
+			auto w = std::max(xoffset_mod + ch.width, ch.xadvance + info.padding[1] + info.padding[3]);
 			max_width = std::max(max_width, w);
 		}
 		return max_width;
@@ -137,6 +145,7 @@ public:
 	}
 	static bool ReadChars(rapidxml::xml_node<char>* node_chars, BMFont& fnt)
 	{
+		fnt.force_offsets_to_zero = true;
 		auto node_char = node_chars->first_node();
 		while (node_char) {
 			BMFont::Char ch{};
@@ -154,6 +163,9 @@ public:
 					M_RAPID_XML_ATTR_IF_SET_INT(attr, "page", ch.page)
 					M_RAPID_XML_ATTR_IF_SET_INT(attr, "chnl", ch.chnl)
 					attr = attr->next_attribute();
+			}
+			if (ch.xoffset + fnt.info.padding[0] != 0 || ch.yoffset + fnt.info.padding[3] != 0) {
+				fnt.force_offsets_to_zero = false;
 			}
 			fnt.chars.push_back(ch);
 			node_char = node_char->next_sibling();

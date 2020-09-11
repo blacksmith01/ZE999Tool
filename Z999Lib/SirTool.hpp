@@ -133,22 +133,6 @@ public:
 		return true;
 	}
 
-	bool EditFontSize(fs::path org_dir_path, uint8_t size, fs::path dst_dir_path)
-	{
-		if (!fs::is_directory(dst_dir_path)) {
-			return false;
-		}
-
-		ReadSirDir(org_dir_path);
-
-		for (auto& sir : fonts) {
-			sir->ModifySize(size);
-			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
-		}
-
-		return true;
-	}
-
 	bool GeneratePatchFontChars(fs::path org_dir_path, fs::path patch_dir_path, fs::path dst_file_path)
 	{
 		// kor
@@ -253,16 +237,29 @@ public:
 		wchar_t scope_min = 0xAC00;
 		wchar_t scope_max = 0xD7AF;
 
+		std::array<int, 2> min_yoffsets = { bmf[0].GetCharMinYoffset(), bmf[1].GetCharMinYoffset() };
+
 		auto func_alloc_data = [&](std::shared_ptr<SirFont::Node>& fn, wchar_t ch) {
 			for (int i = 0; i < 2; i++) {
-				if (auto bmf_ch = stdext::FindPtr<BMFont::Char>(bmf[i].chars, [ch](const auto& elm) { return elm.id == ch; })) {
-					fn->wsize[i] = bmf_ch->width;
-					fn->hsize[i] = bmf_ch->height;
+				if (auto bmf_ch = stdext::FindPtr<BMFont::Char>(bmf[i].chars, [ch, &min_yoffsets](const auto& elm) { return elm.id == ch; })) {
+					int xoffset_mod = 0;
+					int yoffset_mod = 0;
+					if (bmf[i].force_offsets_to_zero) {
+						fn->wsize[i] = bmf_ch->width;
+						fn->hsize[i] = bmf_ch->height;
+					}
+					else {
+						xoffset_mod = std::max(bmf_ch->xoffset + (int)bmf[i].info.padding[3], 0);
+						yoffset_mod = std::max(bmf_ch->yoffset - min_yoffsets[i], 0);
+						fn->wsize[i] = std::max(xoffset_mod + bmf_ch->width, bmf_ch->xadvance + bmf[i].info.padding[1] + bmf[i].info.padding[3]);
+						fn->hsize[i] = yoffset_mod + bmf_ch->height;
+					}
 					fn->data[i].resize(fn->wsize[i] * fn->hsize[i], 0);
 					auto& src_buf = png_buffer[i][bmf_ch->page];
+
 					for (int y = 0; y < bmf_ch->height; y++) {
 						for (int x = 0; x < bmf_ch->width; x++) {
-							fn->data[i][y * bmf_ch->width + x] = src_buf[(bmf_ch->y + y) * png_width[i] + bmf_ch->x + x];
+							fn->data[i][(yoffset_mod + y) * fn->wsize[i] + xoffset_mod + x] = src_buf[(bmf_ch->y + y) * png_width[i] + bmf_ch->x + x];
 						}
 					}
 				}
@@ -403,7 +400,7 @@ public:
 
 		if (mod_size != 0) {
 			for (auto& f : fonts) {
-				f->ModifySize(mod_size);
+				f->ReduceKanjiSize(mod_size);
 			}
 		}
 

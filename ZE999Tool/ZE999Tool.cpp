@@ -80,15 +80,6 @@ int main(int argc, const char* argv[])
 				break;
 			printf("Patch Font Data Generated.");
 		}
-		else if (cmd == "sir-edit-font-size") {
-			if (argc < 5) {
-				break;
-			}
-			SirTool tool;
-			if (!tool.EditFontSize(ToAbsolutePath(argv[2]), (uint8_t)atoi(argv[3]), ToAbsolutePath(argv[4])))
-				break;
-			printf("Changed %llu Fonts.", tool.fonts.size());
-		}
 		else if (cmd == "sir-patch") {
 			if (argc < 6) {
 				break;
