@@ -98,7 +98,7 @@ struct SirFont : public SirBase
 	}
 
 	std::vector<std::shared_ptr<Node>> nodes;
-	std::array<uint32_t,3> footer_unknown_values = {};
+	std::array<uint32_t, 3> footer_unknown_values = {};
 };
 
 struct SirName : public SirBase
@@ -108,7 +108,7 @@ struct SirName : public SirBase
 		std::string name;
 		std::string key_msg;
 		std::string msg;
-		std::array<uint32_t,2> unknown_value;
+		std::array<uint32_t, 2> unknown_value;
 
 		std::wstring patch_name;
 
@@ -121,4 +121,82 @@ struct SirName : public SirBase
 		}
 	};
 	std::vector<std::shared_ptr<Node>> nodes;
+};
+
+struct SirItem : public SirBase
+{
+	struct Node
+	{
+		struct Item
+		{
+			std::string key;
+			std::string text1;
+			std::string text2;
+			std::array<int32_t, 4> unknowns;
+
+			std::wstring patch_text;
+
+			std::size_t Size() const {
+				return 
+					key.length() + 1 +
+					text1.length() + 1 +
+					text2.length() + 1;
+			}
+		};
+		std::string name;
+		std::vector<std::shared_ptr<Item>> items;
+
+		std::size_t Size() const 
+		{
+			auto size = name.length() + 1;
+			for (auto& item : items) {
+				size += item->Size();
+			}
+			return size;
+		}
+	};
+
+	std::vector<std::shared_ptr<Node>> nodes;
+	
+	std::size_t ItemCount() const
+	{
+		std::size_t item_count = 0;
+		for (auto& n : nodes) {
+			item_count += n->items.size();
+		}
+		return item_count;
+	}
+};
+
+struct SirMsg : public SirBase
+{
+	struct Node
+	{
+		std::string key;
+		std::vector<std::string> texts;
+		std::vector<std::wstring> patch_texts;
+
+		std::size_t Size() const 
+		{
+			std::size_t size = key.length() + 1;
+			for (auto& t : texts) {
+				size += t.length() + 1;
+			}
+			return size;
+		}
+
+		std::string AllText() const
+		{
+			std::string text;
+			for (auto& t : texts) {
+				text += t;
+			}
+			return text;
+		}
+
+		std::array<int32_t, 4> unknowns;
+	};
+
+	std::vector<std::shared_ptr<Node>> nodes;
+	uint64_t unknown;
 };

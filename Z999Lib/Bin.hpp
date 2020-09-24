@@ -132,8 +132,7 @@ public:
 		XOR(main_key, 0, data_header);
 
 		auto beg_pos = (const char*)data_header.data();
-		auto cur_pos = beg_pos;
-		MemReader mr(cur_pos);
+		MemReader mr(beg_pos);
 
 		if (memcmp(mr.ReadVector<char>(4).data(), "bin.", 4) != 0) {
 			return;
@@ -148,12 +147,12 @@ public:
 		XOR(main_key, header_offset2, data_structure);
 
 		beg_pos = (const char*)data_structure.data();
-		cur_pos = beg_pos;
+		mr.SetPos(beg_pos);
 
 		auto node_offset = mr.Read<uint32_t>();
 		auto node_count = mr.Read<uint32_t>();
 
-		cur_pos = beg_pos + node_offset;
+		mr.SetPos(beg_pos + node_offset);
 		for (int i = 0; i < node_count; i++) {
 			auto n = std::make_shared<Node>();
 			mr.Read(n->offset);

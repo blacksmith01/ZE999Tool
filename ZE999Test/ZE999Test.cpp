@@ -18,6 +18,8 @@ fs::path ArgPath(std::string_view v) {
 
 int main(int argc, const char* argv[])
 {
+    std::setlocale(LC_CTYPE, "jpn");
+
     // parent path of solution
     root_path = fs::path(winext::GetModuleFileName()).parent_path().parent_path().parent_path().parent_path();
 
@@ -27,11 +29,10 @@ int main(int argc, const char* argv[])
 TEST_CASE("Test All Features", "[test]") {
     SECTION("Unpack & Repack") {
         REQUIRE(BinTool().UnpackMT(ArgPath(R"(bin_org\ze1_data.bin)"), ArgPath(R"(data_ze1)")) == true);
-        REQUIRE(SirTool().CopyValid(ArgPath(R"(data_ze1\sir)"), ArgPath(R"(sir_org)")) == true);
+        REQUIRE(SirTool().CopyValid(ArgPath(R"(sir_test)"), ArgPath(R"(sir_org)")) == true);
         REQUIRE(SirTool().Unpack(ArgPath(R"(sir_org)"), ArgPath(R"(xml_unpacked)")));
-        REQUIRE(SirTool().Repack(ArgPath(R"(xml_unpacked)"), ArgPath(R"(sir_org)")));
+        REQUIRE(SirTool().Repack(ArgPath(R"(xml_unpacked)"), ArgPath(R"(sir_repacked)")));
     }
-
     SECTION("Patch") {
         REQUIRE(SirTool().GeneratePatchFontChars(ArgPath(R"(sir_org)"), ArgPath(R"(xml_patch)"), ArgPath(R"(xml_patch\krchars.txt)")));
         REQUIRE(SirTool().GeneratePatchFontData(ArgPath(R"(sir_org)"), ArgPath(R"(xml_patch)"), ArgPath(R"(xml_patch\default.fnt)"), ArgPath(R"(xml_patch\border.fnt)"), ArgPath(R"(xml_patch)")));
@@ -39,3 +40,4 @@ TEST_CASE("Test All Features", "[test]") {
         REQUIRE(BinTool().Patch(ArgPath(R"(bin_org\ze1_data.bin)"), ArgPath(R"(sir_patched)"), ArgPath(R"(.)")));
     }
 }
+

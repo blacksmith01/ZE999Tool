@@ -32,6 +32,18 @@
 
 namespace stdext
 {
+	template<typename T>
+	inline bool IsValidBufferPtr(const std::span<T>& container, const T* check_ptr)
+	{
+		if (container.empty())
+			return false;
+		else if (&container.front() > check_ptr)
+			return false;
+		else if (&container.back() < check_ptr)
+			return false;
+		return true;
+	}
+
 	template<typename T, typename F>
 	inline T* FindPtr(const std::span<std::shared_ptr<T>>& container, F func)
 	{
@@ -73,8 +85,27 @@ namespace fs = std::filesystem;
 
 class MemReader {
 public:
-	const char*& pos;
-	MemReader(const char*& _pos) : pos(_pos) {}
+	const char* pos;
+	MemReader(const char* _pos)
+	{
+		SetPos(_pos);
+	}
+
+	void SetPos(const char* _pos) 
+	{
+		pos = _pos;
+	}
+
+	void Seek(std::size_t len)
+	{
+		pos += len;
+	}
+
+	template<typename T>
+	inline bool IsPartOf(const std::span<T>& container)
+	{
+		return stdext::IsValidBufferPtr(container, pos);
+	}
 
 	template<typename T>
 	T Read()
@@ -135,6 +166,18 @@ public:
 	{
 		*((T*)pos) = v;
 		pos += sizeof(T);
+	}
+	template<typename T>
+	void WriteString(const T* v, std::size_t len)
+	{
+		memcpy(pos, v, sizeof(T) * len);
+		pos += sizeof(T) * len;
+
+		Write((T)0);
+	}
+	void WriteString(const std::string& v)
+	{
+		WriteString(v.c_str(),v.length());
 	}
 	template<typename T>
 	void WriteArray(T* v, std::size_t len)

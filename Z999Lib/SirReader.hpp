@@ -29,11 +29,6 @@ public:
 		for (int i = 0; i < (footer_end - footer_beg); i += 8, curr_pos += 8) {
 			auto offset = *(const uint64_t*)curr_pos;
 			if (offset == 0) {
-				/* zero */curr_pos += 16;
-				/* footer_beg */curr_pos += 8;
-				/* zero */curr_pos += 8;
-				/* zero */curr_pos += 16;
-				auto node_padding = (16 - ((curr_pos - orig_pos) & 0x0F)) & 0x0F; curr_pos += node_padding;
 				break;
 			}
 			offsets.push_back(offset);
@@ -50,7 +45,7 @@ public:
 	static std::shared_ptr<SirDlg::Node> ReadDlgNode(const std::span<char>& buffer, uint64_t offset)
 	{
 		const char* orig_pos = buffer.data();
-		auto curr_pos = buffer.data() + offset;
+		auto curr_pos = orig_pos + offset;
 		auto n = std::make_shared<SirDlg::Node>();
 
 		std::array<std::string*, 4> str_array = { &n->id__, &n->type, &n->name, &n->text };
@@ -110,11 +105,6 @@ public:
 		for (int i = 0; i < (footer_end - footer_beg); i += 8, curr_pos += 8) {
 			auto offset = *(const uint64_t*)curr_pos;
 			if (offset == 0) {
-				/* zero */curr_pos += 16;
-				/* footer_beg */curr_pos += 8;
-				/* zero */curr_pos += 8;
-				/* zero */curr_pos += 16;
-				auto node_padding = (16 - ((curr_pos - orig_pos) & 0x0F)) & 0x0F; curr_pos += node_padding;
 				break;
 			}
 			if ((i / 8) % 5 == 3) {
@@ -140,14 +130,12 @@ public:
 			sir->nodes.back()->unknown_value[1] = *(((const uint32_t*)&uv) + 1);
 		}
 
-		auto special_codes = uintvar(footer_beg - 12).bytes;
-
 		return sir;
 	}
 	static std::shared_ptr<SirName::Node> ReadNameNode(const std::span<char>& buffer, uint64_t offset)
 	{
 		const char* orig_pos = buffer.data();
-		auto curr_pos = buffer.data() + offset;
+		auto curr_pos = orig_pos + offset;
 		auto n = std::make_shared<SirName::Node>();
 
 		std::array<std::string*, 4> str_array = { &n->key_name, &n->name, &n->key_msg, &n->msg };
@@ -203,9 +191,6 @@ public:
 		for (auto i = 0; i < footer_count; i++) {
 			footer_font_values.push_back(*(uint32_t*)(orig_pos + footer_beg + 8 + 12 + i * 4));
 		}
-		std::vector<uint8_t> special_codes;
-		special_codes.resize(16);
-		memcpy(special_codes.data(), orig_pos + buffer.size() - 16, +16);
 
 		sir->nodes.reserve(footer_font_values.size());
 		uint64_t offset = 4 + 8 + 8;
@@ -261,6 +246,194 @@ public:
 				if (n->keycode[i + 2] != 0) {
 					return false;
 				}
+			}
+			return true;
+		}
+		catch (const std::exception& e) {
+			return false;
+		}
+	}
+
+	static std::shared_ptr<SirItem> ReadItem(std::string filename, const std::span<char>& buffer)
+	{
+		auto sir = std::make_shared<SirItem>();
+		sir->filename = filename;
+		const char* orig_pos = buffer.data();
+		auto curr_pos = orig_pos;
+
+		if (buffer.size() < (curr_pos - orig_pos) + 20) {
+			throw std::exception("invalid memory access");
+		}
+		memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+		auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
+		auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
+		auto content_pos = curr_pos;
+		auto content_size = (orig_pos + footer_beg) - content_pos;
+
+		if (buffer.size() < footer_end) {
+			throw std::exception("invalid memory access");
+		}
+		curr_pos = orig_pos + footer_beg;
+
+		std::vector<uint64_t> offsets;
+		for (int i = 0; i < (footer_end - footer_beg); i += 16, curr_pos += 16) {
+			auto offset = *(const uint64_t*)curr_pos;
+			if (offset == 0) {
+				break;
+			}
+			offsets.push_back(curr_pos - orig_pos);
+		}
+
+		sir->nodes.reserve(offsets.size());
+		for (int i = 0; i < offsets.size(); i++) {
+			sir->nodes.push_back(ReadItemNode(buffer, offsets[i]));
+		}
+
+		return sir;
+	}
+	static std::shared_ptr<SirItem::Node> ReadItemNode(const std::span<char>& buffer, uint64_t offset)
+	{
+		const char* orig_pos = buffer.data();
+
+		auto data_offset = *((uint64_t*)(orig_pos + offset) + 0);
+		auto info_offset = *((uint64_t*)(orig_pos + offset) + 1);
+
+		MemReader reader(orig_pos + data_offset);
+
+		if (!reader.IsPartOf(buffer)) {
+			throw std::exception("invalid memory access");
+		}
+
+		auto n = std::make_shared<SirItem::Node>();
+		n->name = reader.pos;
+
+		reader.SetPos(orig_pos + info_offset);
+		while (reader.IsPartOf(buffer)) {
+			auto offset_key = reader.Read<uint64_t>();
+			if (offset_key == 0) {
+				break;
+			}
+			
+			auto offset_text1 = reader.Read<uint64_t>();
+			auto offset_text2 = reader.Read<uint64_t>();
+			if (offset_key >= buffer.size()|| offset_text1 >= buffer.size()|| offset_text2 >= buffer.size()) {
+				throw std::exception("invalid memory access");
+			}
+
+			auto item = std::make_shared<SirItem::Node::Item>();
+			item->key = orig_pos + offset_key;
+			item->text1 = orig_pos + offset_text1;
+			item->text2 = orig_pos + offset_text2;
+			reader.ReadArray(item->unknowns);
+			n->items.push_back(item);
+		}
+
+		return n;
+	}
+	static bool IsValidItem(const std::span<char>& buffer)
+	{
+		try {
+			auto n = ReadItemNode(buffer, *(uint64_t*)(&buffer.front() + 4));
+			if (n->items.empty()) {
+				return false;
+			}
+			auto& front = n->items.front();
+			if (front->key.empty() || front->key.front() != '^') {
+				return false;
+			}
+			return true;
+		}
+		catch (const std::exception& e) {
+			return false;
+		}
+	}
+
+	static std::shared_ptr<SirMsg> ReadMsg(std::string filename, const std::span<char>& buffer)
+	{
+		auto sir = std::make_shared<SirMsg>();
+		sir->filename = filename;
+		const char* orig_pos = buffer.data();
+		auto curr_pos = orig_pos;
+
+		if (buffer.size() < (curr_pos - orig_pos) + 20) {
+			throw std::exception("invalid memory access");
+		}
+		memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+		auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
+		auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
+		auto content_pos = curr_pos;
+		auto content_size = (orig_pos + footer_beg) - content_pos;
+
+		if (buffer.size() < footer_end) {
+			throw std::exception("invalid memory access");
+		}
+		curr_pos = orig_pos + footer_beg;
+
+		std::vector<uint64_t> offsets;
+		for (; curr_pos < orig_pos + footer_end; curr_pos += 32) {
+			auto offset = *(const uint64_t*)curr_pos;
+			if (offset == 0) {
+				break;
+			}
+			offsets.push_back(curr_pos - orig_pos);
+		}
+
+		if (offsets.empty() || offsets.front() + 24 >= buffer.size()) {
+			throw std::exception("invalid file");
+		}
+
+		auto data_max_pos = orig_pos + *((uint64_t*)(orig_pos + (offsets.front() + 24))) - 1;
+		while (*data_max_pos == (char)0xAA) {
+			data_max_pos--;
+		}
+
+		curr_pos += sizeof(uint64_t) * 3;
+		sir->unknown = *(const uint64_t*)curr_pos;
+
+		sir->nodes.reserve(offsets.size());
+		for (int i = 0; i < offsets.size(); i++) {
+
+			sir->nodes.push_back(ReadMsgNode(buffer, offsets[i], i + 1 == offsets.size() ? (data_max_pos - orig_pos) : *((uint64_t*)(orig_pos + offsets[i + 1]))));
+		}
+
+		return sir;
+	}
+	static std::shared_ptr<SirMsg::Node> ReadMsgNode(const std::span<char>& buffer, uint64_t offset, uint64_t next_offset)
+	{
+		const char* orig_pos = buffer.data();
+
+		MemReader reader(orig_pos + offset);
+
+		auto n = std::make_shared<SirMsg::Node>();
+
+		auto data_offset = reader.Read<uint64_t>();
+		reader.ReadArray(n->unknowns);
+		auto value_offset = reader.Read<uint64_t>();
+
+		reader.SetPos(orig_pos + data_offset);
+
+		if (!reader.IsPartOf(buffer)) {
+			throw std::exception("invalid memory access");
+		}
+		n->key = reader.pos;
+		reader.Seek(n->key.length() + 1);
+
+		do {
+			if (!reader.IsPartOf(buffer)) {
+				throw std::exception("invalid memory access");
+			}
+			n->texts.push_back(reader.pos);
+			reader.Seek(n->texts.back().length() + 1);
+		} while (reader.pos - orig_pos < next_offset);
+
+		return n;
+	}
+	static bool IsValidMsg(const std::span<char>& buffer)
+	{
+		try {
+			auto n = ReadMsgNode(buffer, *(uint64_t*)(&buffer.front() + 4), 0);
+			if (n->key != "START_CREATE_FIRST") {
+				return false;
 			}
 			return true;
 		}
@@ -463,6 +636,135 @@ public:
 			sir->nodes.push_back(n);
 			node_font = node_font->next_sibling();
 			inode++;
+		}
+
+		return sir;
+	}
+
+	static std::shared_ptr<SirItem> ReadItem(fs::path file_path)
+	{
+		auto sir = std::make_shared<SirItem>();
+		sir->filename = file_path.stem().stem().string();
+		memcpy(sir->header_sig, "SIR1", 4);
+
+		rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
+		rapidxml::xml_document<char> doc;
+		doc.parse<0>(xmlFile.data());
+
+		auto node_sir = doc.first_node();
+		auto node_nodes = node_sir->first_node();
+		auto node_node = node_nodes->first_node();
+		while (node_node != nullptr) {
+			auto n = std::make_shared<SirItem::Node>();
+			auto attr_node = node_node->first_attribute();
+			while (attr_node != nullptr) {
+				if (strcmp(attr_node->name(), "name") == 0) {
+					n->name = utf8_to_mbs(attr_node->value());
+				}
+				attr_node = attr_node->next_attribute();
+			}
+
+			auto item_node = node_node->first_node();
+			while (item_node != nullptr) {
+				auto item = std::make_shared<SirItem::Node::Item>();
+
+				auto attr_item = item_node->first_attribute();
+				while (attr_item != nullptr) {
+					if (strcmp(attr_item->name(), "key") == 0) {
+						item->key = "^" + utf8_to_mbs(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "text1") == 0) {
+						item->patch_text = utf8_to_wcs(attr_item->value());
+						item->text1 = wcs_to_mbs(item->patch_text, "");
+					}
+					else if (strcmp(attr_item->name(), "text2") == 0) {
+						item->text2 = utf8_to_mbs(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "unknown1") == 0) {
+						item->unknowns[0] = atoi(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "unknown2") == 0) {
+						item->unknowns[1] = atoi(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "unknown3") == 0) {
+						item->unknowns[2] = atoi(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "unknown4") == 0) {
+						item->unknowns[3] = atoi(attr_item->value());
+					}
+					attr_item = attr_item->next_attribute();
+				}
+
+				n->items.push_back(item);
+				item_node = item_node->next_sibling();
+			}
+
+			sir->nodes.push_back(n);
+			node_node = node_node->next_sibling();
+		}
+
+		return sir;
+	}
+
+	static std::shared_ptr<SirMsg> ReadMsg(fs::path file_path)
+	{
+		auto sir = std::make_shared<SirMsg>();
+		sir->filename = file_path.stem().stem().string();
+		memcpy(sir->header_sig, "SIR1", 4);
+
+		rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
+		rapidxml::xml_document<char> doc;
+		doc.parse<0>(xmlFile.data());
+
+		auto node_sir = doc.first_node();
+		auto node_dlgs = node_sir->first_node();
+		auto attr_dlgs = node_dlgs->first_attribute();
+		while (attr_dlgs != nullptr) {
+			if (strcmp(attr_dlgs->name(), "unknown") == 0) {
+				sir->unknown = (uint64_t)atoi(attr_dlgs->value());
+			}
+			attr_dlgs = attr_dlgs->next_attribute();
+		}
+
+
+		auto node_dlg = node_dlgs->first_node();
+		while (node_dlg != nullptr) {
+			auto n = std::make_shared<SirMsg::Node>();
+			auto attr_dlg = node_dlg->first_attribute();
+			while (attr_dlg != nullptr) {
+				if (strcmp(attr_dlg->name(), "key") == 0) {
+					n->key = attr_dlg->value();
+				}
+				else if (strcmp(attr_dlg->name(), "unknown1") == 0) {
+					n->unknowns[0] = atoi(attr_dlg->value());
+				}
+				else if (strcmp(attr_dlg->name(), "unknown2") == 0) {
+					n->unknowns[1] = atoi(attr_dlg->value());
+				}
+				else if (strcmp(attr_dlg->name(), "unknown3") == 0) {
+					n->unknowns[2] = atoi(attr_dlg->value());
+				}
+				else if (strcmp(attr_dlg->name(), "unknown4") == 0) {
+					n->unknowns[3] = atoi(attr_dlg->value());
+				}
+				attr_dlg = attr_dlg->next_attribute();
+			}
+
+			auto node_text = node_dlg->first_node();
+			while (node_text != nullptr) {
+				auto attr_text = node_text->first_attribute();
+				while (attr_text != nullptr) {
+					if (strcmp(attr_text->name(), "value") == 0) {
+						n->patch_texts.push_back(utf8_to_wcs(attr_text->value()));
+						n->texts.push_back(wcs_to_mbs(n->patch_texts.back(), ""));
+					}
+					attr_text = attr_text->next_attribute();
+				}
+				node_text = node_text->next_sibling();
+			}
+
+			sir->nodes.push_back(n);
+			node_dlg = node_dlg->next_sibling();
 		}
 
 		return sir;

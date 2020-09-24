@@ -73,6 +73,12 @@ public:
 			SirPngWriter::Write(*sir, 0, fs::path(dst_dir_path).append(sir->filename + ".default.png"));
 			SirPngWriter::Write(*sir, 1, fs::path(dst_dir_path).append(sir->filename + ".border.png"));
 		}
+		for (auto& sir : items) {
+			SirXmlWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".item.xml"));
+		}
+		for (auto& sir : msgs) {
+			SirXmlWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".msg.xml"));
+		}
 
 		return true;
 	}
@@ -109,6 +115,12 @@ public:
 		for (auto& sir : fonts) {
 			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
 		}
+		for (auto& sir : items) {
+			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
+		}
+		for (auto& sir : msgs) {
+			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
+		}
 
 		return true;
 	}
@@ -125,6 +137,8 @@ public:
 		for (auto& sir : dlgs) filenames.push_back(sir->filename);
 		for (auto& sir : names) filenames.push_back(sir->filename);
 		for (auto& sir : fonts) filenames.push_back(sir->filename);
+		for (auto& sir : items) filenames.push_back(sir->filename);
+		for (auto& sir : msgs) filenames.push_back(sir->filename);
 
 		for (auto& fn : filenames) {
 			fs::copy_file(fs::path(org_dir_path).append(fn + ".sir"), fs::path(dst_dir_path).append(fn + ".sir"), fs::copy_options::overwrite_existing);
@@ -144,7 +158,7 @@ public:
 		for (auto i : fs::recursive_directory_iterator{ patch_dir_path }) {
 			auto ip = i.path();
 			if (i.is_regular_file() && ip.extension() == ".xml") {
-				if (StrCmpEndWith(ip.string(), ".dlg.xml") || StrCmpEndWith(ip.string(), ".name.xml")) {
+				if (!StrCmpEndWith(ip.string(), ".font.xml")) {
 					ReadXml(ip, true);
 				}
 			}
@@ -195,7 +209,7 @@ public:
 		for (auto i : fs::recursive_directory_iterator{ patch_dir_path }) {
 			auto ip = i.path();
 			if (i.is_regular_file() && ip.extension() == ".xml") {
-				if (StrCmpEndWith(ip.string(), ".dlg.xml") || StrCmpEndWith(ip.string(), ".name.xml")) {
+				if (!StrCmpEndWith(ip.string(), ".font.xml")) {
 					ReadXml(ip, true);
 				}
 			}
@@ -312,9 +326,7 @@ public:
 	void RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<wchar_t>& w_keycodes)
 	{
 		for (auto& ps : patch_dlgs) {
-			auto d = stdext::FindPtr<SirDlg>(dlgs, [&ps](std::shared_ptr<SirDlg> f) {
-				return f->filename == ps->filename;
-			});
+			auto d = FindSirPtr(dlgs, ps->filename);
 			if (d == nullptr) {
 				continue;
 			}
@@ -339,9 +351,7 @@ public:
 		}
 
 		for (auto& ps : patch_names) {
-			auto d = stdext::FindPtr<SirName>(names, [&ps](std::shared_ptr<SirName> f) {
-				return f->filename == ps->filename;
-			});
+			auto d = FindSirPtr(names, ps->filename);
 			if (d == nullptr) {
 				continue;
 			}
@@ -359,6 +369,65 @@ public:
 					for (std::size_t i = 0; i < modlen; i++) {
 						if (pn->patch_name[i] >= scope_min && pn->patch_name[i] <= scope_max) {
 							w_keycodes.insert(pn->patch_name[i]);
+						}
+					}
+				}
+			}
+		}
+
+		for (auto& ps : patch_items) {
+			auto d = FindSirPtr(items, ps->filename);
+			if (d == nullptr) {
+				continue;
+			}
+
+			for (auto& pn : ps->nodes) {
+				auto n = stdext::FindPtr<SirItem::Node>(d->nodes, [&pn](auto& arg) {
+					return arg->name == pn->name;
+				});
+				if (n == nullptr) {
+					continue;
+				}
+
+				for (auto& pitem : pn->items) {
+					if (auto item = stdext::FindPtr<SirItem::Node::Item>(n->items, [&pitem](std::shared_ptr<SirItem::Node::Item> f) {
+						return f->key == pitem->key;
+					})) {
+						if (pitem->text1 != item->text1) {
+
+							auto modlen = pitem->patch_text.length();
+							for (std::size_t i = 0; i < modlen; i++) {
+								if (pitem->patch_text[i] >= scope_min && pitem->patch_text[i] <= scope_max) {
+									w_keycodes.insert(pitem->patch_text[i]);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (auto& ps : patch_msgs) {
+			auto d = FindSirPtr(msgs, ps->filename);
+			if (d == nullptr) {
+				continue;
+			}
+
+			for (auto& pn : ps->nodes) {
+				auto n = stdext::FindPtr<SirMsg::Node>(d->nodes, [&pn](auto& arg) {
+					return arg->key == pn->key;
+				});
+				if (n == nullptr) {
+					continue;
+				}
+
+				if (pn->AllText() != n->AllText()) {
+					for (auto& t : pn->patch_texts) {
+						auto modlen = t.length();
+						for (std::size_t i = 0; i < modlen; i++) {
+							if (t[i] >= scope_min && t[i] <= scope_max) {
+								w_keycodes.insert(t[i]);
+							}
 						}
 					}
 				}
@@ -407,11 +476,11 @@ public:
 		std::vector<SirDlg*> patched_dlgs;
 		std::vector<SirName*> patched_names;
 		std::vector<SirFont*> patched_fonts;
+		std::vector<SirItem*> patched_items;
+		std::vector<SirMsg*> patched_msgs;
 
 		for (auto& ps : patch_fonts) {
-			auto f = stdext::FindPtr<SirFont>(fonts, [&ps](auto& elm) {
-				return elm->filename == ps->filename;
-			});
+			auto f = FindSirPtr(fonts, ps->filename);
 			if (f == nullptr) {
 				continue;
 			}
@@ -432,9 +501,7 @@ public:
 		}
 
 		for (auto& ps : patch_dlgs) {
-			auto d = stdext::FindPtr<SirDlg>(dlgs, [&ps](std::shared_ptr<SirDlg> elm) {
-				return elm->filename == ps->filename;
-			});
+			auto d = FindSirPtr(dlgs, ps->filename);
 			if (d == nullptr) {
 				continue;
 			}
@@ -468,9 +535,7 @@ public:
 		}
 
 		for (auto& ps : patch_names) {
-			auto d = stdext::FindPtr<SirName>(names, [&ps](auto& elm) {
-				return elm->filename == ps->filename;
-			});
+			auto d = FindSirPtr(names, ps->filename);
 			if (d == nullptr) {
 				continue;
 			}
@@ -504,6 +569,85 @@ public:
 			patched_names.push_back(d);
 		}
 
+		for (auto& ps : patch_items) {
+			auto d = FindSirPtr(items, ps->filename);
+			if (d == nullptr) {
+				continue;
+			}
+
+			for (auto& pn : ps->nodes) {
+				auto n = stdext::FindPtr<SirItem::Node>(d->nodes, [&pn](auto& elm) {
+					return elm->name == pn->name;
+				});
+				if (n == nullptr) {
+					continue;
+				}
+
+				for (auto& pitem : pn->items) {
+					if (auto item = stdext::FindPtr<SirItem::Node::Item>(n->items, [&pitem](std::shared_ptr<SirItem::Node::Item> f) {
+						return f->key == pitem->key;
+					})) {
+						if (pitem->text1 != item->text1) {
+							auto wlen = pitem->patch_text.length();
+
+							std::wstring fwtext;
+							fwtext.reserve(wlen + 10);
+
+							for (std::size_t i = 0; i < wlen; i++) {
+								auto it = patch_glyphs.find(pitem->patch_text[i]);
+								if (it == patch_glyphs.end()) {
+									fwtext += pitem->patch_text[i];
+									continue;
+								}
+								fwtext += it->second;
+							}
+
+							item->text1 = wcs_to_mbs(fwtext, "");
+						}
+					}
+				}
+			}
+			patched_items.push_back(d);
+		}
+
+		for (auto& ps : patch_msgs) {
+			auto d = FindSirPtr(msgs, ps->filename);
+			if (d == nullptr) {
+				continue;
+			}
+
+			for (auto& pn : ps->nodes) {
+				auto n = stdext::FindPtr<SirMsg::Node>(d->nodes, [&pn](auto& elm) {
+					return elm->key == pn->key;
+				});
+				if (n == nullptr) {
+					continue;
+				}
+
+				if (pn->AllText() != n->AllText()) {
+					n->texts.clear();
+					for (auto& pitem : pn->patch_texts) {
+						auto wlen = pitem.length();
+
+						std::wstring fwtext;
+						fwtext.reserve(wlen + 10);
+
+						for (std::size_t i = 0; i < wlen; i++) {
+							auto it = patch_glyphs.find(pitem[i]);
+							if (it == patch_glyphs.end()) {
+								fwtext += pitem[i];
+								continue;
+							}
+							fwtext += it->second;
+						}
+
+						n->texts.push_back(wcs_to_mbs(fwtext, ""));
+					}
+				}
+			}
+			patched_msgs.push_back(d);
+		}
+
 		if (!fs::exists(dst_dir_path)) {
 			fs::create_directory(dst_dir_path);
 		}
@@ -515,6 +659,12 @@ public:
 			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
 		}
 		for (auto sir : patched_fonts) {
+			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
+		}
+		for (auto sir : patched_items) {
+			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
+		}
+		for (auto sir : patched_msgs) {
 			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
 		}
 
@@ -556,6 +706,12 @@ public:
 			else if (SirReader::IsValidFont(rbuffer)) {
 				fonts.push_back(SirReader::ReadFont(file_path.stem().stem().string(), rbuffer));
 			}
+			else if (SirReader::IsValidItem(rbuffer)) {
+				items.push_back(SirReader::ReadItem(file_path.stem().stem().string(), rbuffer));
+			}
+			else if (SirReader::IsValidMsg(rbuffer)) {
+				msgs.push_back(SirReader::ReadMsg(file_path.stem().stem().string(), rbuffer));
+			}
 			else {
 				return false;
 			}
@@ -584,14 +740,36 @@ public:
 				fs::path(file_path.parent_path()).append(filename_without_ext + ".default.png"),
 				fs::path(file_path.parent_path()).append(filename_without_ext + ".border.png")));
 		}
+		else if (StrCmpEndWith(filename, ".item.xml")) {
+			(is_patch ? patch_items : items).push_back(SirXmlReader::ReadItem(file_path));
+		}
+		else if (StrCmpEndWith(filename, ".msg.xml")) {
+			(is_patch ? patch_msgs : msgs).push_back(SirXmlReader::ReadMsg(file_path));
+		}
+	}
+
+	template<typename T>
+	T* FindSirPtr(const std::vector<std::shared_ptr<T>>& container, std::string_view filename)
+	{
+		for (auto& c : container) {
+			if (c->filename == filename) {
+				return &(*c);
+			}
+		}
+		return nullptr;
 	}
 
 	std::vector<std::shared_ptr<SirDlg>> dlgs;
 	std::vector<std::shared_ptr<SirName>> names;
 	std::vector<std::shared_ptr<SirFont>> fonts;
+	std::vector<std::shared_ptr<SirItem>> items;
+	std::vector<std::shared_ptr<SirMsg>> msgs;
 
 	std::vector<std::shared_ptr<SirDlg>> patch_dlgs;
 	std::vector<std::shared_ptr<SirName>> patch_names;
 	std::vector<std::shared_ptr<SirFont>> patch_fonts;
+	std::vector<std::shared_ptr<SirItem>> patch_items;
+	std::vector<std::shared_ptr<SirMsg>> patch_msgs;
+
 	std::unordered_map<wchar_t, wchar_t> patch_glyphs;
 };
