@@ -358,7 +358,6 @@ public:
 		ofs.write(buffer.data(), buffer.size());
 	}
 
-
 	static void Write(const SirMsg& sir, fs::path file_path)
 	{
 		uint64_t node_count = sir.nodes.size();
@@ -454,6 +453,196 @@ public:
 		}
 
 		writer.Write((uint8_t)0x00);
+		for (int i = 0; i < padding_buffer; i++)
+			writer.Write((uint8_t)0xAA);
+
+		std::ofstream ofs(file_path, std::ios::binary);
+		ofs.write(buffer.data(), buffer.size());
+	}
+
+	static void Write(const SirDesc& sir, fs::path file_path)
+	{
+		uint64_t node_count = sir.nodes.size();
+		uint64_t text_count = sir.texts.size();
+
+		uint64_t node_data_size = 0;
+		uint64_t node_id_size = 0;
+		for (auto& n : sir.nodes) {
+			node_data_size += n->bytes.size();
+			node_id_size += n->id.size() + 1;
+		}
+		auto padding_node_data_size = (4 - (node_data_size & 0x03)) & 0x03;
+		auto padding_node_id_size = (4 - (node_id_size & 0x03)) & 0x03;
+
+		uint64_t text_beg = 20 + node_data_size + padding_node_data_size;
+		uint64_t text_size = 0;
+		for (auto& t : sir.texts) {
+			text_size += t->value.size() + 1;
+		}
+		auto padding_text_size = (4 - (text_size & 0x03)) & 0x03;
+
+		uint64_t start_beg = text_beg + text_size + padding_text_size + sir.texts.size() * 8 + 8;
+		uint64_t start_size = 0;
+		for (auto& s : sir.starts) {
+			start_size += s.size() + 1;
+		}
+		auto padding_start_size = (4 - (start_size & 0x03)) & 0x03;
+
+		uint64_t var_beg = start_beg + start_size + padding_start_size + sir.starts.size() * 8 + 8;
+		uint64_t var_size = 0;
+		for (auto& v : sir.vars) {
+			var_size += v.size() + 1;
+		}
+		auto padding_var_size = (4 - (var_size & 0x03)) & 0x03;
+
+		uint64_t node_id_beg = var_beg + var_size + padding_var_size + sir.vars.size() * 8 + 8;
+
+		uint64_t sound_filename_beg = node_id_beg + node_id_size + padding_node_id_size + sir.nodes.size() * (2 * 8) + (2 * 8);
+		uint64_t sound_filename_size = sir.sound_file_name.size() + 1;
+		auto padding_sound_filename_size = (4 - (sound_filename_size & 0x03)) & 0x03;
+
+		uint64_t footer_beg = sound_filename_beg + sound_filename_size + padding_sound_filename_size;
+
+		uint64_t footer_end = footer_beg + sizeof(uint64_t) * 5 + sizeof(uint32_t);
+		auto padding_footer = (16 - (footer_end & 0x0F)) & 0x0F;
+		footer_end += padding_footer;
+
+		uintvar v_text(text_beg + text_size + padding_text_size - 12);
+		uintvar v_var(var_size + padding_var_size + 16);
+		uintvar v_nodeid(node_id_size + padding_node_id_size + 16);
+		std::array<uint8_t, 5> v_last = { 0x08,0x0C,0x08,0x08,0x00 };
+
+		uint64_t buffer_size
+			= footer_end + 2
+			+ v_text.bytes.size() + text_count
+			+ v_var.bytes.size() + sir.vars.size() - 1
+			+ v_nodeid.bytes.size() + node_count * 2
+			+ 5;
+		auto padding_buffer = (16 - (buffer_size & 0x0F)) & 0x0F;
+		buffer_size += padding_buffer;
+
+		std::vector<char> buffer;
+		buffer.resize(buffer_size);
+
+		auto start_pos = buffer.data();
+		auto curr_pos = start_pos;
+
+		MemWriter writer(curr_pos);
+		writer.WriteArray(sir.header_sig, 4);
+		writer.Write(footer_beg);
+		writer.Write(footer_end);
+
+		std::vector<uint64_t> node_data_offsets;
+		node_data_offsets.reserve(sir.nodes.size());
+		for (auto& n : sir.nodes) {
+			node_data_offsets.push_back(writer.pos - start_pos);
+			writer.WriteArray(n->bytes);
+		}
+		for (int i = 0; i < padding_node_data_size; i++)
+			writer.Write((uint8_t)0xAA);
+
+
+		std::vector<uint64_t> text_offsets;
+		for (auto& t : sir.texts) {
+			text_offsets.push_back(writer.pos - start_pos);
+			writer.WriteString(t->value);
+		}
+		for (int i = 0; i < padding_text_size; i++)
+			writer.Write((uint8_t)0xAA);
+
+		uint64_t text_info_offset = writer.pos - start_pos;
+		for (auto offset : text_offsets) {
+			writer.Write(offset);
+		}
+		writer.Write<uint64_t>(0);
+
+
+		std::vector<uint64_t> start_offsets;
+		for (auto& t : sir.starts) {
+			start_offsets.push_back(writer.pos - start_pos);
+			writer.WriteString(t);
+		}
+		for (int i = 0; i < padding_start_size; i++)
+			writer.Write((uint8_t)0xAA);
+
+		uint64_t start_info_offset = writer.pos - start_pos;
+		for (auto offset : start_offsets) {
+			writer.Write(offset);
+		}
+		writer.Write<uint64_t>(0);
+
+
+		std::vector<uint64_t> var_offsets;
+		for (auto& t : sir.vars) {
+			var_offsets.push_back(writer.pos - start_pos);
+			writer.WriteString(t);
+		}
+		for (int i = 0; i < padding_var_size; i++)
+			writer.Write((uint8_t)0xAA);
+
+		uint64_t var_info_offset = writer.pos - start_pos;
+		for (auto offset : var_offsets) {
+			writer.Write(offset);
+		}
+		writer.Write<uint64_t>(0);
+
+
+		std::vector<uint64_t> node_id_offsets;
+		node_data_offsets.reserve(sir.nodes.size());
+		for (auto& n : sir.nodes) {
+			node_id_offsets.push_back(writer.pos - start_pos);
+			writer.WriteString(n->id);
+		}
+		for (int i = 0; i < padding_node_id_size; i++)
+			writer.Write((uint8_t)0xAA);
+
+
+		uint64_t node_info_offset = writer.pos - start_pos;
+		for (int i = 0; i < sir.nodes.size(); i++) {
+			auto& n = sir.nodes[i];
+			writer.Write(node_data_offsets[i]);
+			writer.Write(node_id_offsets[i]);
+		}
+		writer.Write<uint64_t>(0);
+		writer.Write<uint64_t>(0);
+
+
+		uint64_t sountfile_offset = writer.pos - start_pos;
+		writer.WriteString(sir.sound_file_name);
+		for (int i = 0; i < padding_sound_filename_size; i++)
+			writer.Write((uint8_t)0xAA);
+
+		writer.Write(sountfile_offset);
+		writer.Write(node_info_offset);
+		writer.Write<uint32_t>(text_count);
+		writer.Write(text_info_offset);
+		writer.Write(start_info_offset);
+		writer.Write(var_info_offset);
+
+		for (int i = 0; i < padding_footer; i++)
+			writer.Write((uint8_t)0xAA);
+
+		writer.Write((uint8_t)0x04);
+		writer.Write((uint8_t)0x08);
+		writer.WriteArray(v_text.bytes);
+
+		for (uint64_t i = 0; i < text_count; i++) {
+			writer.Write((uint8_t)(i + 1 == text_count ? 0x18 : 0x08));
+		}
+
+		writer.WriteArray(v_var.bytes);
+
+		for (uint64_t i = 0; i < sir.vars.size() - 1; i++) {
+			writer.Write((uint8_t)0x08);
+		}
+
+		writer.WriteArray(v_nodeid.bytes);
+
+		for (uint64_t i = 0; i < node_count * 2; i++) {
+			writer.Write((uint8_t)(i + 1 == node_count * 2 ? 0x20 : 0x08));
+		}
+
+		writer.WriteArray(v_last);
 		for (int i = 0; i < padding_buffer; i++)
 			writer.Write((uint8_t)0xAA);
 
@@ -633,6 +822,72 @@ public:
 				node_dlg->append_node(node_text);
 			}
 		}
+		std::string xmlString;
+		rapidxml::print(std::back_inserter(xmlString), doc);
+
+		std::ofstream ofs(file_path);
+		ofs.write(xmlString.c_str(), xmlString.size());
+	}
+
+	static void Write(const SirDesc& sir, fs::path file_path)
+	{
+		rapidxml::xml_document<char> doc;
+		auto node_sir = doc.allocate_node(rapidxml::node_element, "sir");
+		doc.append_node(node_sir);
+
+		node_sir->append_attribute(doc.allocate_attribute("sound", RapidXmlString(doc, mbs_to_utf8(sir.sound_file_name))));
+
+		{
+			auto node_dlgs = doc.allocate_node(rapidxml::node_element, "bins");
+			node_dlgs->append_attribute(doc.allocate_attribute("size", RapidXmlString(doc, sir.nodes.size())));
+			node_sir->append_node(node_dlgs);
+
+			for (auto& n : sir.nodes) {
+				auto node_dlg = doc.allocate_node(rapidxml::node_element, "bin");
+				node_dlg->append_attribute(doc.allocate_attribute("id", RapidXmlString(doc, mbs_to_utf8(n->id))));
+				node_dlg->append_attribute(doc.allocate_attribute("byte", RapidXmlString(doc, BytesToHexString(n->bytes))));
+				node_dlgs->append_node(node_dlg);
+			}
+		}
+
+		{
+			auto node_texts = doc.allocate_node(rapidxml::node_element, "texts");
+			node_texts->append_attribute(doc.allocate_attribute("size", RapidXmlString(doc, sir.texts.size())));
+			node_sir->append_node(node_texts);
+
+			for (auto& t : sir.texts) {
+				auto node_text = doc.allocate_node(rapidxml::node_element, "text");
+				node_text->append_attribute(doc.allocate_attribute("id", RapidXmlString(doc, t->temp_id)));
+				node_text->append_attribute(doc.allocate_attribute("value", RapidXmlString(doc, mbs_to_utf8(t->value))));
+				node_texts->append_node(node_text);
+			}
+		}
+
+		{
+			auto node_starts = doc.allocate_node(rapidxml::node_element, "starts");
+			node_starts->append_attribute(doc.allocate_attribute("size", RapidXmlString(doc, sir.starts.size())));
+			node_sir->append_node(node_starts);
+
+			for (auto& s : sir.starts) {
+				auto node_start = doc.allocate_node(rapidxml::node_element, "start");
+				node_start->append_attribute(doc.allocate_attribute("value", RapidXmlString(doc, mbs_to_utf8(s))));
+				node_starts->append_node(node_start);
+			}
+		}
+
+
+		{
+			auto node_vars = doc.allocate_node(rapidxml::node_element, "vars");
+			node_vars->append_attribute(doc.allocate_attribute("size", RapidXmlString(doc, sir.vars.size())));
+			node_sir->append_node(node_vars);
+
+			for (auto& v : sir.vars) {
+				auto node_var = doc.allocate_node(rapidxml::node_element, "var");
+				node_var->append_attribute(doc.allocate_attribute("value", RapidXmlString(doc, mbs_to_utf8(v))));
+				node_vars->append_node(node_var);
+			}
+		}
+
 		std::string xmlString;
 		rapidxml::print(std::back_inserter(xmlString), doc);
 

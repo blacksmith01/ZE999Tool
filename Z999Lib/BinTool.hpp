@@ -16,13 +16,10 @@ public:
 		}
 
 		std::vector<fs::path> patch_files;
-		if (fs::is_regular_file(patch_path)) {
-			patch_files.push_back(patch_path);
-		}
-		else {
-			RecursiveDirWork(patch_path, [&patch_files](const fs::path& elm) {
-				patch_files.push_back(elm);
-			});
+		for (auto i : fs::recursive_directory_iterator{ patch_path }) {
+			if (i.is_regular_file()) {
+				patch_files.push_back(i);
+			}
 		}
 
 		BinFile bin;

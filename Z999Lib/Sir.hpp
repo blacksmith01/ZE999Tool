@@ -137,7 +137,7 @@ struct SirItem : public SirBase
 			std::wstring patch_text;
 
 			std::size_t Size() const {
-				return 
+				return
 					key.length() + 1 +
 					text1.length() + 1 +
 					text2.length() + 1;
@@ -146,7 +146,7 @@ struct SirItem : public SirBase
 		std::string name;
 		std::vector<std::shared_ptr<Item>> items;
 
-		std::size_t Size() const 
+		std::size_t Size() const
 		{
 			auto size = name.length() + 1;
 			for (auto& item : items) {
@@ -157,7 +157,7 @@ struct SirItem : public SirBase
 	};
 
 	std::vector<std::shared_ptr<Node>> nodes;
-	
+
 	std::size_t ItemCount() const
 	{
 		std::size_t item_count = 0;
@@ -176,7 +176,7 @@ struct SirMsg : public SirBase
 		std::vector<std::string> texts;
 		std::vector<std::wstring> patch_texts;
 
-		std::size_t Size() const 
+		std::size_t Size() const
 		{
 			std::size_t size = key.length() + 1;
 			for (auto& t : texts) {
@@ -199,4 +199,26 @@ struct SirMsg : public SirBase
 
 	std::vector<std::shared_ptr<Node>> nodes;
 	uint64_t unknown;
+};
+
+struct SirDesc : public SirBase
+{
+	struct Node
+	{
+		std::vector<uint8_t> bytes;
+		std::string id;
+	};
+
+	struct Text
+	{
+		int temp_id;
+		std::string value;
+		std::wstring patch_text;
+	};
+
+	std::string sound_file_name;
+	std::vector<std::shared_ptr<Node>> nodes;
+	std::vector<std::shared_ptr<Text>> texts;
+	std::vector<std::string> starts;
+	std::vector<std::string> vars;
 };

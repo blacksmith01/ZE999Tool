@@ -79,6 +79,9 @@ public:
 		for (auto& sir : msgs) {
 			SirXmlWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".msg.xml"));
 		}
+		for (auto& sir : descs) {
+			SirXmlWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".desc.xml"));
+		}
 
 		return true;
 	}
@@ -121,6 +124,9 @@ public:
 		for (auto& sir : msgs) {
 			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
 		}
+		for (auto& sir : descs) {
+			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
+		}
 
 		return true;
 	}
@@ -139,6 +145,7 @@ public:
 		for (auto& sir : fonts) filenames.push_back(sir->filename);
 		for (auto& sir : items) filenames.push_back(sir->filename);
 		for (auto& sir : msgs) filenames.push_back(sir->filename);
+		for (auto& sir : descs) filenames.push_back(sir->filename);
 
 		for (auto& fn : filenames) {
 			fs::copy_file(fs::path(org_dir_path).append(fn + ".sir"), fs::path(dst_dir_path).append(fn + ".sir"), fs::copy_options::overwrite_existing);
@@ -433,6 +440,31 @@ public:
 				}
 			}
 		}
+
+		for (auto& ps : patch_descs) {
+			auto d = FindSirPtr(descs, ps->filename);
+			if (d == nullptr) {
+				continue;
+			}
+
+			for (auto& pn : ps->texts) {
+				auto n = stdext::FindPtr<SirDesc::Text>(d->texts, [&pn](auto& arg) {
+					return arg->temp_id == pn->temp_id;
+				});
+				if (n == nullptr) {
+					continue;
+				}
+
+				if (pn->value != n->value) {
+					auto modlen = pn->patch_text.length();
+					for (std::size_t i = 0; i < modlen; i++) {
+						if (pn->patch_text[i] >= scope_min && pn->patch_text[i] <= scope_max) {
+							w_keycodes.insert(pn->patch_text[i]);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	void RetriveAnsiChars(std::set<uint8_t>& ansi_map)
@@ -478,6 +510,7 @@ public:
 		std::vector<SirFont*> patched_fonts;
 		std::vector<SirItem*> patched_items;
 		std::vector<SirMsg*> patched_msgs;
+		std::vector<SirDesc*> patched_descs;
 
 		for (auto& ps : patch_fonts) {
 			auto f = FindSirPtr(fonts, ps->filename);
@@ -648,6 +681,41 @@ public:
 			patched_msgs.push_back(d);
 		}
 
+		for (auto& ps : patch_descs) {
+			auto d = FindSirPtr(descs, ps->filename);
+			if (d == nullptr) {
+				continue;
+			}
+
+			for (auto& pn : ps->texts) {
+				auto n = stdext::FindPtr<SirDesc::Text>(d->texts, [&pn](auto& elm) {
+					return elm->temp_id == pn->temp_id;
+				});
+				if (n == nullptr) {
+					continue;
+				}
+
+				if (pn->value != n->value) {
+					auto wlen = pn->patch_text.length();
+
+					std::wstring fwtext;
+					fwtext.reserve(wlen + 10);
+
+					for (std::size_t i = 0; i < wlen; i++) {
+						auto it = patch_glyphs.find(pn->patch_text[i]);
+						if (it == patch_glyphs.end()) {
+							fwtext += pn->patch_text[i];
+							continue;
+						}
+						fwtext += it->second;
+					}
+
+					n->value = wcs_to_mbs(fwtext, "");
+				}
+			}
+			patched_descs.push_back(d);
+		}
+
 		if (!fs::exists(dst_dir_path)) {
 			fs::create_directory(dst_dir_path);
 		}
@@ -665,6 +733,9 @@ public:
 			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
 		}
 		for (auto sir : patched_msgs) {
+			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
+		}
+		for (auto sir : patched_descs) {
 			SirWriter::Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
 		}
 
@@ -686,7 +757,7 @@ public:
 	bool ReadSirFile(fs::path file_path)
 	{
 		auto file_size = fs::file_size(file_path);
-		if (file_size <= 0)
+		if (file_size <= 20) // sir1 + footer_beg + footer_end
 			return false;
 
 		std::ifstream ifs(file_path, std::ifstream::binary);
@@ -711,6 +782,9 @@ public:
 			}
 			else if (SirReader::IsValidMsg(rbuffer)) {
 				msgs.push_back(SirReader::ReadMsg(file_path.stem().stem().string(), rbuffer));
+			}
+			else if (SirReader::IsValidDesc(rbuffer)) {
+				descs.push_back(SirReader::ReadDesc(file_path.stem().stem().string(), rbuffer));
 			}
 			else {
 				return false;
@@ -746,6 +820,9 @@ public:
 		else if (StrCmpEndWith(filename, ".msg.xml")) {
 			(is_patch ? patch_msgs : msgs).push_back(SirXmlReader::ReadMsg(file_path));
 		}
+		else if (StrCmpEndWith(filename, ".desc.xml")) {
+			(is_patch ? patch_descs : descs).push_back(SirXmlReader::ReadDesc(file_path));
+		}
 	}
 
 	template<typename T>
@@ -764,12 +841,14 @@ public:
 	std::vector<std::shared_ptr<SirFont>> fonts;
 	std::vector<std::shared_ptr<SirItem>> items;
 	std::vector<std::shared_ptr<SirMsg>> msgs;
+	std::vector<std::shared_ptr<SirDesc>> descs;
 
 	std::vector<std::shared_ptr<SirDlg>> patch_dlgs;
 	std::vector<std::shared_ptr<SirName>> patch_names;
 	std::vector<std::shared_ptr<SirFont>> patch_fonts;
 	std::vector<std::shared_ptr<SirItem>> patch_items;
 	std::vector<std::shared_ptr<SirMsg>> patch_msgs;
+	std::vector<std::shared_ptr<SirDesc>> patch_descs;
 
 	std::unordered_map<wchar_t, wchar_t> patch_glyphs;
 };

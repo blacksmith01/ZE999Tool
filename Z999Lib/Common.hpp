@@ -84,34 +84,78 @@ namespace stdext
 namespace fs = std::filesystem;
 
 class MemReader {
+private:
+	std::span<char> sp;
+	int pos;
+
 public:
-	const char* pos;
-	MemReader(const char* _pos)
+	MemReader(std::span<char> _sp)
 	{
-		SetPos(_pos);
+		SetPos(_sp);
+	}
+	MemReader(std::span<uint8_t> _sp)
+	{
+		SetPos(_sp);
+	}
+	MemReader(const char* ptr, std::size_t len)
+	{
+		SetPos(std::span<char>((char*)ptr, len));
+	}
+	MemReader(const uint8_t* ptr, std::size_t len)
+	{
+		SetPos(std::span<char>((char*)ptr, len));
 	}
 
-	void SetPos(const char* _pos) 
-	{
-		pos = _pos;
+	const char* Ptr() const {
+		return sp.data() + pos;
 	}
 
-	void Seek(std::size_t len)
+	void SetPos(std::span<char> _sp)
 	{
+		if (_sp.empty()) {
+			throw std::exception("!memory access");
+		}
+		sp = _sp;
+		pos = 0;
+	}
+	void SetPos(std::span<uint8_t> _sp)
+	{
+		if (_sp.empty()) {
+			throw std::exception("!memory access");
+		}
+		sp = std::span<char>((char*)_sp.data(), _sp.size());
+		pos = 0;
+	}
+
+	void Forward(std::size_t len)
+	{
+		if (pos + len > sp.size())
+			throw std::exception("!memory access");
+
 		pos += len;
 	}
 
-	template<typename T>
-	inline bool IsPartOf(const std::span<T>& container)
+	void Seek(std::size_t offset)
 	{
-		return stdext::IsValidBufferPtr(container, pos);
+		if (offset > sp.size())
+			throw std::exception("!memory access");
+
+		pos = (int)offset;
+	}
+
+	bool IsEnd() const
+	{
+		return (pos >= sp.size());
 	}
 
 	template<typename T>
 	T Read()
 	{
+		if (pos + sizeof(T) > sp.size())
+			throw std::exception("!memory access");
+
 		T out;
-		out = *((T*)pos);
+		out = *((T*)Ptr());
 		pos += sizeof(T);
 		return out;
 	}
@@ -119,14 +163,20 @@ public:
 	template<typename T>
 	void Read(T& out)
 	{
-		out = *((T*)pos);
+		if (pos + sizeof(T) > sp.size())
+			throw std::exception("!memory access");
+
+		out = *((T*)Ptr());
 		pos += sizeof(T);
 	}
 
 	template<typename T>
 	void ReadArray(std::size_t len, T* out)
 	{
-		memcpy(out, pos, sizeof(T) * len);
+		if (pos + sizeof(T) * len > sp.size())
+			throw std::exception("!memory access");
+
+		memcpy(out, Ptr(), sizeof(T) * len);
 		pos += sizeof(T) * len;
 	}
 	template<typename T, int N>
@@ -177,7 +227,7 @@ public:
 	}
 	void WriteString(const std::string& v)
 	{
-		WriteString(v.c_str(),v.length());
+		WriteString(v.c_str(), v.length());
 	}
 	template<typename T>
 	void WriteArray(T* v, std::size_t len)
@@ -209,23 +259,10 @@ inline std::string ReadText(const fs::path& path, std::size_t except_header_size
 
 	std::vector<char> buffer;
 	buffer.resize(fs::file_size(path) - except_header_size + 1);
-	ifs.rdbuf()->sgetn(buffer.data(), buffer.size()-1);
+	ifs.rdbuf()->sgetn(buffer.data(), buffer.size() - 1);
 	buffer.back() = 0;
 
 	return buffer.data();
-}
-
-template <typename FUNC>
-inline void RecursiveDirWork(const fs::path path, FUNC f)
-{
-	for (auto i : fs::recursive_directory_iterator{ path }) {
-		if (i.is_directory()) {
-			RecursiveDirWork(i, f);
-		}
-		else if (i.is_regular_file()) {
-			f(i);
-		}
-	}
 }
 
 class uintvar {
@@ -250,11 +287,11 @@ public:
 	std::vector<uint8_t> bytes;
 };
 
-inline bool StrCmpEndWith(const std::string& s, const char* cmp) 
+inline bool StrCmpEndWith(const std::string& s, const char* cmp)
 {
 	auto slen = s.length();
 	auto clen = strlen(cmp);
-	return (slen >= clen+1 && std::string_view(s.c_str() + (slen - clen), clen) == cmp);
+	return (slen >= clen + 1 && std::string_view(s.c_str() + (slen - clen), clen) == cmp);
 }
 
 template<typename T>
@@ -404,10 +441,10 @@ inline const wchar_t* RapidXmlString(rapidxml::xml_document<wchar_t>& doc, const
 }
 
 inline const char* RapidXmlString(rapidxml::xml_document<char>& doc, const std::string& v) {
-	return doc.allocate_string(v.c_str());
+	return doc.allocate_string(v.c_str(), v.size() + 1);
 }
 inline const wchar_t* RapidXmlString(rapidxml::xml_document<wchar_t>& doc, const std::wstring& v) {
-	return doc.allocate_string(v.c_str());
+	return doc.allocate_string(v.c_str(), v.size() + 1);
 }
 
 #define M_RAPID_XML_ATTR_IF_SET_STRING(attr, attr_name, target)\
@@ -508,7 +545,7 @@ public:
 			}
 			else if (color_type == PNG_COLOR_TYPE_RGB_ALPHA) {
 				for (uint32_t i = 0; i < width * 4; i += 4) {
-					data[y * width + i / 4] = row_bytes[i+3] == 0 ? 0 : row_bytes[i];
+					data[y * width + i / 4] = row_bytes[i + 3] == 0 ? 0 : row_bytes[i];
 				}
 			}
 		}
