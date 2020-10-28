@@ -15,6 +15,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ZE999Lib", "ZE999Lib", "{D5
 		Z999Lib\SirReader.hpp = Z999Lib\SirReader.hpp
 		Z999Lib\SirTool.hpp = Z999Lib\SirTool.hpp
 		Z999Lib\SirWriter.hpp = Z999Lib\SirWriter.hpp
+		Z999Lib\XmlTool.hpp = Z999Lib\XmlTool.hpp
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ZE999Test", "ZE999Test\ZE999Test.vcxproj", "{A40E69DD-F111-4749-9B33-DDB5B6B7E05E}"

@@ -4,6 +4,7 @@
 #include "Common.hpp"
 #include "SirTool.hpp"
 #include "BinTool.hpp"
+#include "XmlTool.hpp"
 #include "BMFont.hpp"
 
 
@@ -29,15 +30,20 @@ int main(int argc, const char* argv[])
 TEST_CASE("Test All Features", "[test]") {
     SECTION("Unpack & Repack") {
         //REQUIRE(BinTool().UnpackMT(ArgPath(R"(bin_org\ze1_data.bin)"), ArgPath(R"(data_ze1)")) == true);
-        REQUIRE(SirTool().CopyValid(ArgPath(R"(data_ze1\sir)"), ArgPath(R"(sir_org)")) == true);
+        //REQUIRE(SirTool().CopyValid(ArgPath(R"(data_ze1\sir)"), ArgPath(R"(sir_org)")) == true);
         //REQUIRE(SirTool().Unpack(ArgPath(R"(sir_org)"), ArgPath(R"(xml_unpacked)")));
         //REQUIRE(SirTool().Repack(ArgPath(R"(xml_unpacked)"), ArgPath(R"(sir_repacked)")));
-    }
+        //REQUIRE(SirTool().Unpack(ArgPath(R"(data_descriptions)"), ArgPath(R"(xml_unpacked)")));
+        //REQUIRE(SirTool().Unpack(ArgPath(R"(sir_test)"), ArgPath(R"(xml_test)")));
+        //REQUIRE(SirTool().Repack(ArgPath(R"(xml_test)"), ArgPath(R"(sir_test)")));
+        //REQUIRE(XmlTool().ConvertHalfWidthJapaneseXml(ArgPath(R"(xml_unpacked)"), ArgPath(R"(xml_unpacked)")));
+        //REQUIRE(SirTool().ExePatch(ArgPath(R"(sir_org)"), ArgPath(R"(xml_patch)"), R"(C:\Program Files (x86)\Steam\steamapps\common\Zero Escape The Nonary Games\ze1.exe.unpacked.exe)", ArgPath(R"(exe_patched)")));
+    //} 
     //SECTION("Patch") {
-    //    REQUIRE(SirTool().GeneratePatchFontChars(ArgPath(R"(sir_org)"), ArgPath(R"(xml_patch)"), ArgPath(R"(xml_patch\krchars.txt)")));
+        REQUIRE(SirTool().GeneratePatchFontChars(ArgPath(R"(sir_org)"), ArgPath(R"(xml_patch)"), ArgPath(R"(xml_patch\krchars.txt)")));
     //    REQUIRE(SirTool().GeneratePatchFontData(ArgPath(R"(sir_org)"), ArgPath(R"(xml_patch)"), ArgPath(R"(xml_patch\default.fnt)"), ArgPath(R"(xml_patch\border.fnt)"), ArgPath(R"(xml_patch)")));
     //    REQUIRE(SirTool().Patch(ArgPath(R"(sir_org)"), ArgPath(R"(xml_patch)"), "20", ArgPath(R"(sir_patched)")));
     //    REQUIRE(BinTool().Patch(ArgPath(R"(bin_org\ze1_data.bin)"), ArgPath(R"(sir_patched)"), ArgPath(R"(.)")));
-    //}
+    }
 }
 

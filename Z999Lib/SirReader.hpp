@@ -333,6 +333,96 @@ public:
 		}
 	}
 
+	static std::shared_ptr<SirLocation> ReadLocation(std::string filename, const std::span<char>& buffer)
+	{
+		auto sir = std::make_shared<SirLocation>();
+		sir->filename = filename;
+		const char* orig_pos = buffer.data();
+		auto curr_pos = orig_pos;
+
+		memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+		auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
+		auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
+		auto content_pos = curr_pos;
+		auto content_size = (orig_pos + footer_beg) - content_pos;
+
+		if (buffer.size() < footer_end) {
+			throw std::exception("invalid memory access");
+		}
+		curr_pos = orig_pos + footer_beg;
+
+		std::vector<uint64_t> offsets;
+		for (int i = 0; i < (footer_end - footer_beg); i += 44, curr_pos += 44) {
+			auto offset = *(const uint64_t*)curr_pos;
+			if (offset == 0) {
+				break;
+			}
+			offsets.push_back(curr_pos - orig_pos);
+		}
+
+		sir->nodes.reserve(offsets.size());
+		for (int i = 0; i < offsets.size(); i++) {
+			sir->nodes.push_back(ReadLocationNode(buffer, offsets[i]));
+		}
+
+		return sir;
+	}
+	static std::shared_ptr<SirLocation::Node> ReadLocationNode(const std::span<char>& buffer, uint64_t offset)
+	{
+		auto size = buffer.size();
+		MemReader reader(buffer);
+		reader.Forward(offset);
+
+		auto n = std::make_shared<SirLocation::Node>();
+		auto map_name = reader.Read<uint64_t>();
+		auto map_key = reader.Read<uint64_t>();
+		for (int i = 0; i < 5; i++)
+			n->unknowns[i] = reader.Read<int32_t>();
+		auto item_start = reader.Read<uint64_t>();
+
+		reader.Seek(map_name); n->map_name = reader.Ptr();
+		reader.Seek(map_key); n->map_key = reader.Ptr();
+
+		reader.Seek(item_start);
+		std::vector<uint64_t> item_offsets;
+		while (reader.CurrPos() < size)
+		{
+			auto pos = reader.Read<uint64_t>();
+			if (pos == 0)
+				break;
+			item_offsets.push_back(pos);
+		}
+
+		for (int i = 0; i < item_offsets.size(); i += 2)
+		{
+			if (i + 1 >= item_offsets.size())
+				break;
+
+			auto item = std::make_shared<SirLocation::Node::Item>();
+			reader.Seek(item_offsets[i + 0]); item->text= reader.Ptr();
+			reader.Seek(item_offsets[i + 1]); item->key	= reader.Ptr();
+			n->items.push_back(item);
+		}
+
+		return n;
+	}
+	static bool IsValidLocation(const std::span<char>& buffer)
+	{
+		try {
+			MemReader reader(buffer);
+			reader.Forward(4);
+
+			auto n = ReadLocationNode(buffer, reader.Read<uint64_t>());
+			if (n->map_name != "deck_A" || n->items.empty()) {
+				return false;
+			}
+			return true;
+		}
+		catch (const std::exception& e) {
+			return false;
+		}
+	}
+
 	static std::shared_ptr<SirMsg> ReadMsg(std::string filename, const std::span<char>& buffer)
 	{
 		auto sir = std::make_shared<SirMsg>();
@@ -577,6 +667,134 @@ public:
 			/*if (n->key != "START_CREATE_FIRST") {
 				return false;
 			}*/
+			return true;
+		}
+		catch (const std::exception& e) {
+			return false;
+		}
+	}
+
+	static std::shared_ptr<SirFChart> ReadFChart(std::string filename, const std::span<char>& buffer)
+	{
+		auto sir = std::make_shared<SirFChart>();
+		sir->filename = filename;
+		const char* orig_pos = buffer.data();
+
+		MemReader reader(buffer);
+
+		reader.ReadArray(4, sir->header_sig);
+		auto footer_beg = reader.Read<uint64_t>();
+		auto footer_end = reader.Read<uint64_t>();
+
+		if (footer_beg >= footer_end || buffer.size() < footer_end) {
+			throw std::exception("invalid memory access");
+		}
+
+		reader.Seek(footer_beg);
+		std::vector<uint64_t> offsets;
+		while (reader.Ptr() < orig_pos + footer_end) {
+			auto curPos = reader.CurrPos();
+			auto offset = reader.Read<uint64_t>();
+			if (offset == 0) {
+				break;
+			}
+			offsets.push_back(curPos);
+			reader.Forward(sizeof(uint64_t) * 10);
+		}
+
+		for (auto o : offsets)
+		{
+			sir->nodes.push_back(ReadFChartNode(buffer, o));
+		}
+
+		if (sir->nodes.empty()) {
+			throw std::exception("invalid file");
+		}
+
+		return sir;
+	}
+	static std::shared_ptr<SirFChart::Node> ReadFChartNode(const std::span<char>& buffer, uint64_t offset)
+	{
+		auto size = buffer.size();
+
+		if (size < offset) {
+			throw std::exception("invalid memory access");
+		}
+
+		MemReader reader(buffer);
+		reader.Seek(offset);
+
+		std::array<uint64_t, 11> n_offsets;
+		for (int i = 0; i < 11; i++)
+		{
+			reader.Read(n_offsets[i]);
+			if (i > 0 && n_offsets[i] <= n_offsets[i - 1])
+			{
+				throw std::exception("invalid memory access");
+			}
+		}
+
+		auto n = std::make_shared<SirFChart::Node>();
+		reader.Seek(n_offsets[0]); n->id1 = reader.Ptr();
+		reader.Seek(n_offsets[1]); n->id2 = reader.Ptr();
+		reader.Seek(n_offsets[2]); n->name_jp = reader.Ptr();
+		reader.Seek(n_offsets[3]); n->filename = reader.Ptr();
+		reader.Seek(n_offsets[4]); n->name = reader.Ptr();
+
+		reader.Seek(n_offsets[5]); n->text = reader.Ptr();
+		reader.Seek(n_offsets[6]); n->desc_jp = reader.Ptr();
+		reader.Seek(n_offsets[7]); n->type_id1 = reader.Ptr();
+		reader.Seek(n_offsets[8]); n->command1 = reader.Ptr();
+		reader.Seek(n_offsets[9]); n->type_id2 = reader.Ptr();
+
+		reader.Seek(n_offsets[10]);
+
+		std::array<uint64_t, 6> i_offsets;
+		while (reader.CurrPos() < size)
+		{
+			reader.Read(i_offsets[0]);
+			if (i_offsets[0] == 0)
+				break;
+
+			for (int i = 0; i < 5; i++)
+			{
+				reader.Read(i_offsets[i + 1]);
+				if (i > 0 && i_offsets[i] <= i_offsets[i - 1])
+				{
+					throw std::exception("invalid memory access");
+				}
+			}
+
+			auto org_pos = reader.CurrPos();
+
+			auto item = std::make_shared<SirFChart::Node::Item>();
+			reader.Seek(i_offsets[0]); item->id1 = reader.Ptr();
+			reader.Seek(i_offsets[1]); item->id2 = reader.Ptr();
+			reader.Seek(i_offsets[2]); item->name_jp = reader.Ptr();
+			reader.Seek(i_offsets[3]); item->filename = reader.Ptr();;
+			reader.Seek(i_offsets[4]); item->name = reader.Ptr();
+			reader.Seek(i_offsets[5]); item->text = reader.Ptr();
+
+			n->items.push_back(item);
+
+			reader.Seek(org_pos);
+		}
+
+		return n;
+	}
+	static bool IsValidFChart(const std::span<char>& buffer)
+	{
+		try {
+			MemReader reader(buffer);
+
+			reader.Forward(4);
+			auto footer_beg = reader.Read<uint64_t>();
+			auto footer_end = reader.Read<uint64_t>();
+
+			auto n = ReadFChartNode(buffer, footer_beg);
+			if (n->id1 != "A01b_novel_1")
+				return false;
+
 			return true;
 		}
 		catch (const std::exception& e) {
@@ -848,6 +1066,74 @@ public:
 		return sir;
 	}
 
+	static std::shared_ptr<SirLocation> ReadLocation(fs::path file_path)
+	{
+		auto sir = std::make_shared<SirLocation>();
+		sir->filename = file_path.stem().stem().string();
+		memcpy(sir->header_sig, "SIR1", 4);
+
+		rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
+		rapidxml::xml_document<char> doc;
+		doc.parse<0>(xmlFile.data());
+
+		auto node_sir = doc.first_node();
+		auto node_nodes = node_sir->first_node();
+		auto node_node = node_nodes->first_node();
+		while (node_node != nullptr) {
+			auto n = std::make_shared<SirLocation::Node>();
+			auto attr_node = node_node->first_attribute();
+			while (attr_node != nullptr) {
+				if (strcmp(attr_node->name(), "name") == 0) {
+					n->map_name = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "key") == 0) {
+					n->map_key = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "unknown1") == 0) {
+					n->unknowns[0] = atoi(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "unknown2") == 0) {
+					n->unknowns[1] = atoi(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "unknown3") == 0) {
+					n->unknowns[2] = atoi(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "unknown4") == 0) {
+					n->unknowns[3] = atoi(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "unknown5") == 0) {
+					n->unknowns[4] = atoi(attr_node->value());
+				}
+				attr_node = attr_node->next_attribute();
+			}
+
+			auto item_node = node_node->first_node();
+			while (item_node != nullptr) {
+				auto item = std::make_shared<SirLocation::Node::Item>();
+
+				auto attr_item = item_node->first_attribute();
+				while (attr_item != nullptr) {
+					if (strcmp(attr_item->name(), "key") == 0) {
+						item->key = utf8_to_mbs(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "text") == 0) {
+						item->patch_text = utf8_to_wcs(attr_item->value());
+						item->text = wcs_to_mbs(item->patch_text, "");
+					}
+					attr_item = attr_item->next_attribute();
+				}
+
+				n->items.push_back(item);
+				item_node = item_node->next_sibling();
+			}
+
+			sir->nodes.push_back(n);
+			node_node = node_node->next_sibling();
+		}
+
+		return sir;
+	}
+
 	static std::shared_ptr<SirMsg> ReadMsg(fs::path file_path)
 	{
 		auto sir = std::make_shared<SirMsg>();
@@ -963,7 +1249,7 @@ public:
 				}
 				else if (strcmp(attr_text->name(), "value") == 0) {
 					t->patch_text = utf8_to_wcs(attr_text->value());
-					t->value = wcs_to_mbs(t->patch_text,"");
+					t->value = wcs_to_mbs(t->patch_text, "");
 				}
 				attr_text = attr_text->next_attribute();
 			}
@@ -995,6 +1281,96 @@ public:
 				attr_var = attr_var->next_attribute();
 			}
 			node_var = node_var->next_sibling();
+		}
+
+		return sir;
+	}
+
+	static std::shared_ptr<SirFChart> ReadFChart(fs::path file_path)
+	{
+		auto sir = std::make_shared<SirFChart>();
+		sir->filename = file_path.stem().stem().string();
+		memcpy(sir->header_sig, "SIR1", 4);
+
+		rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
+		rapidxml::xml_document<char> doc;
+		doc.parse<0>(xmlFile.data());
+
+		auto node_sir = doc.first_node();
+		auto node_nodes = node_sir->first_node();
+		auto node_node = node_nodes->first_node();
+		while (node_node != nullptr) {
+			auto n = std::make_shared<SirFChart::Node>();
+			auto attr_node = node_node->first_attribute();
+			while (attr_node != nullptr) {
+				if (strcmp(attr_node->name(), "id1") == 0) {
+					n->id1 = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "id2") == 0) {
+					n->id2 = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "name_jp") == 0) {
+					n->name_jp = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "file") == 0) {
+					n->filename = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "name") == 0) {
+					n->name = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "text") == 0) {
+					n->patch_text = utf8_to_wcs(attr_node->value());
+					n->text = wcs_to_mbs(n->patch_text, "");
+				}
+				else if (strcmp(attr_node->name(), "desc_jp") == 0) {
+					n->desc_jp = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "type1") == 0) {
+					n->type_id1 = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "command1") == 0) {
+					n->command1 = utf8_to_mbs(attr_node->value());
+				}
+				else if (strcmp(attr_node->name(), "type2") == 0) {
+					n->type_id2 = utf8_to_mbs(attr_node->value());
+				}
+				attr_node = attr_node->next_attribute();
+			}
+
+			auto item_node = node_node->first_node();
+			while (item_node != nullptr) {
+				auto item = std::make_shared<SirFChart::Node::Item>();
+
+				auto attr_item = item_node->first_attribute();
+				while (attr_item != nullptr) {
+					if (strcmp(attr_item->name(), "id1") == 0) {
+						item->id1 = utf8_to_mbs(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "id2") == 0) {
+						item->id2 = utf8_to_mbs(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "name_jp") == 0) {
+						item->name_jp = utf8_to_mbs(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "file") == 0) {
+						item->filename = utf8_to_mbs(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "name") == 0) {
+						item->name = utf8_to_mbs(attr_item->value());
+					}
+					else if (strcmp(attr_item->name(), "text") == 0) {
+						item->patch_text = utf8_to_wcs(attr_item->value());
+						item->text = wcs_to_mbs(item->patch_text, "");
+					}
+					attr_item = attr_item->next_attribute();
+				}
+
+				n->items.push_back(item);
+				item_node = item_node->next_sibling();
+			}
+
+			sir->nodes.push_back(n);
+			node_node = node_node->next_sibling();
 		}
 
 		return sir;

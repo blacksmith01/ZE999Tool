@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #pragma warning( disable : 4101)
 
@@ -108,6 +108,11 @@ public:
 
 	const char* Ptr() const {
 		return sp.data() + pos;
+	}
+
+	int CurrPos() const
+	{
+		return pos;
 	}
 
 	void SetPos(std::span<char> _sp)

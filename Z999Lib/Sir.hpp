@@ -222,3 +222,120 @@ struct SirDesc : public SirBase
 	std::vector<std::string> starts;
 	std::vector<std::string> vars;
 };
+
+struct SirLocation : public SirBase
+{
+	struct Node
+	{
+		struct Item
+		{
+			std::string text;
+			std::string key;
+			std::wstring patch_text;
+
+			std::size_t Size() const
+			{
+				return text.length() + 1 + key.length() + 1;
+			}
+		};
+
+		std::string map_name;
+		std::string map_key;
+		std::vector<std::shared_ptr<Item>> items;
+		std::array<int32_t, 5> unknowns;
+
+		std::size_t Size() const
+		{
+			std::size_t size = map_name.length() + 1 + map_key.length() + 1;
+			for (auto& i : items)
+				size += i->Size();
+			return size;
+		}
+	};
+
+	std::vector<std::shared_ptr<Node>> nodes;
+
+	std::size_t ItemCount() const
+	{
+		std::size_t size = 0;
+		for (auto& n : nodes)
+			size += n->items.size();
+		return size;
+	}
+};
+
+struct SirFChart : public SirBase
+{
+	struct Node
+	{
+		std::string id1;
+		std::string id2;
+		std::string name_jp;
+		std::string filename;
+		std::string name;
+
+		std::string text;
+		std::string desc_jp;
+		std::string type_id1;
+		std::string command1;
+		std::string type_id2;
+
+		std::wstring patch_text;
+
+		std::size_t BaseSize() const
+		{
+			return 1 + id1.length()
+				+ 1 + id2.length()
+				+ 1 + name_jp.length()
+				+ 1 + filename.length()
+				+ 1 + name.length()
+				+ 1 + text.length()
+				+ 1 + desc_jp.length()
+				+ 1 + type_id1.length()
+				+ 1 + command1.length()
+				+ 1 + type_id2.length();
+		}
+		std::size_t Size() const
+		{
+			std::size_t size = BaseSize();
+			for (auto& i : items)
+				size += i->Size();
+
+			return size;
+		}
+
+		struct Item
+		{
+			std::string id1;
+			std::string id2;
+			std::string name_jp;
+			std::string filename;
+			std::string name;
+			std::string text;
+
+			std::wstring patch_text;
+
+			std::size_t Size() const
+			{
+				return 1 + id1.length()
+					 + 1 + id2.length()
+					 + 1 + name_jp.length()
+					 + 1 + filename.length()
+					 + 1 + name.length()
+					 + 1 + text.length();
+			}
+		};
+
+		std::vector<std::shared_ptr<Item>> items;
+	};
+
+	std::size_t ItemCount() const
+	{
+		std::size_t size = 0;
+		for (auto& n : nodes)
+			size += n->items.size();
+		return size;
+	}
+
+	std::vector<std::shared_ptr<Node>> nodes;
+};
