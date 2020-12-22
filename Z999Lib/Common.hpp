@@ -312,7 +312,7 @@ inline std::wstring ValueToHexWString(T v, bool include_header = true) {
 	return ((include_header) ? L"0x" : L"") + std::wstring(stream.str());
 }
 
-std::string BytesToHexString(const std::span<uint8_t>& arr) {
+inline std::string BytesToHexString(const std::span<uint8_t>& arr) {
 	static const char* digits = "0123456789ABCDEF";
 	auto hex_len = arr.size();
 	std::string rc(hex_len * 2, '0');
@@ -323,7 +323,7 @@ std::string BytesToHexString(const std::span<uint8_t>& arr) {
 	return "0x" + rc;
 }
 
-std::vector<uint8_t> HexStringToBytes(const std::string& hex) {
+inline std::vector<uint8_t> HexStringToBytes(const std::string& hex) {
 	std::vector<uint8_t> bytes;
 
 	std::size_t hex_len = hex.size();

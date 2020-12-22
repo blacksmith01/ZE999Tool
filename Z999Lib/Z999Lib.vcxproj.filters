@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="BMFont.hpp" />
+    <ClInclude Include="Common.hpp" />
+    <ClInclude Include="XmlTool.hpp" />
+    <ClInclude Include="SirPngWriter.hpp">
+      <Filter>sir\writer</Filter>
+    </ClInclude>
+    <ClInclude Include="SirWriter.hpp">
+      <Filter>sir\writer</Filter>
+    </ClInclude>
+    <ClInclude Include="SirXmlWriter.hpp">
+      <Filter>sir\writer</Filter>
+    </ClInclude>
+    <ClInclude Include="SirReader.hpp">
+      <Filter>sir\reader</Filter>
+    </ClInclude>
+    <ClInclude Include="Sir.hpp">
+      <Filter>sir</Filter>
+    </ClInclude>
+    <ClInclude Include="SirTool.hpp">
+      <Filter>sir</Filter>
+    </ClInclude>
+    <ClInclude Include="BinTool.hpp">
+      <Filter>bin</Filter>
+    </ClInclude>
+    <ClInclude Include="Bin.hpp">
+      <Filter>bin</Filter>
+    </ClInclude>
+    <ClInclude Include="SirXmlReader.hpp">
+      <Filter>sir\reader</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="sir">
+      <UniqueIdentifier>{d650628f-1a0e-4ec8-bcee-6d256fa13cf2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sir\reader">
+      <UniqueIdentifier>{42e5ae06-8abd-40fd-ad13-9219e24b9364}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sir\writer">
+      <UniqueIdentifier>{c98475ad-7674-49a9-8394-294d2e395996}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="bin">
+      <UniqueIdentifier>{d0bcfdd7-b5ec-4fce-b6ed-bf81ef828120}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="SirTool.cpp">
+      <Filter>sir</Filter>
+    </ClCompile>
+    <ClCompile Include="SirReader.cpp">
+      <Filter>sir\reader</Filter>
+    </ClCompile>
+    <ClCompile Include="SirXmlReader.cpp">
+      <Filter>sir\reader</Filter>
+    </ClCompile>
+    <ClCompile Include="SirPngWriter.cpp">
+      <Filter>sir\writer</Filter>
+    </ClCompile>
+    <ClCompile Include="SirWriter.cpp">
+      <Filter>sir\writer</Filter>
+    </ClCompile>
+    <ClCompile Include="SirXmlWriter.cpp">
+      <Filter>sir\writer</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

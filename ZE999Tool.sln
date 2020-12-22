@@ -5,20 +5,9 @@ VisualStudioVersion = 16.0.30320.27
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ZE999Tool", "ZE999Tool\ZE999Tool.vcxproj", "{4468651A-0B0F-4A0B-8D46-470815C45B12}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ZE999Lib", "ZE999Lib", "{D5995F20-4D16-4917-9FBA-DF00728D998A}"
-	ProjectSection(SolutionItems) = preProject
-		Z999Lib\Bin.hpp = Z999Lib\Bin.hpp
-		Z999Lib\BinTool.hpp = Z999Lib\BinTool.hpp
-		Z999Lib\BMFont.hpp = Z999Lib\BMFont.hpp
-		Z999Lib\Common.hpp = Z999Lib\Common.hpp
-		Z999Lib\Sir.hpp = Z999Lib\Sir.hpp
-		Z999Lib\SirReader.hpp = Z999Lib\SirReader.hpp
-		Z999Lib\SirTool.hpp = Z999Lib\SirTool.hpp
-		Z999Lib\SirWriter.hpp = Z999Lib\SirWriter.hpp
-		Z999Lib\XmlTool.hpp = Z999Lib\XmlTool.hpp
-	EndProjectSection
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ZE999Test", "ZE999Test\ZE999Test.vcxproj", "{A40E69DD-F111-4749-9B33-DDB5B6B7E05E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Z999Lib", "Z999Lib\Z999Lib.vcxproj", "{B7DA90B1-8907-4890-B637-FCD0AC3091F7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -44,6 +33,14 @@ Global
 		{A40E69DD-F111-4749-9B33-DDB5B6B7E05E}.Release|x64.Build.0 = Release|x64
 		{A40E69DD-F111-4749-9B33-DDB5B6B7E05E}.Release|x86.ActiveCfg = Release|Win32
 		{A40E69DD-F111-4749-9B33-DDB5B6B7E05E}.Release|x86.Build.0 = Release|Win32
+		{B7DA90B1-8907-4890-B637-FCD0AC3091F7}.Debug|x64.ActiveCfg = Debug|x64
+		{B7DA90B1-8907-4890-B637-FCD0AC3091F7}.Debug|x64.Build.0 = Debug|x64
+		{B7DA90B1-8907-4890-B637-FCD0AC3091F7}.Debug|x86.ActiveCfg = Debug|Win32
+		{B7DA90B1-8907-4890-B637-FCD0AC3091F7}.Debug|x86.Build.0 = Debug|Win32
+		{B7DA90B1-8907-4890-B637-FCD0AC3091F7}.Release|x64.ActiveCfg = Release|x64
+		{B7DA90B1-8907-4890-B637-FCD0AC3091F7}.Release|x64.Build.0 = Release|x64
+		{B7DA90B1-8907-4890-B637-FCD0AC3091F7}.Release|x86.ActiveCfg = Release|Win32
+		{B7DA90B1-8907-4890-B637-FCD0AC3091F7}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

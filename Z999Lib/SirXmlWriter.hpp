@@ -1,21 +1,25 @@
 #pragma once
 
 #include "Sir.hpp"
+#include "SirPngWriter.hpp"
 
-class SirWriter {
+class SirXmlWriter
+{
 public:
 	template <typename T>
 	static void WriteAll(std::vector<std::shared_ptr<T>>& sirs, const fs::path& dst_dir_path)
 	{
-		for (auto sir : sirs) {
-			Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
+		for (auto& sir : sirs) {
+			Write(*sir, fs::path(dst_dir_path).append(sir->filename + T::XmlExtension));
 		}
 	}
-	template <typename T>
-	static void WriteAll(std::vector<T*>& sirs, const fs::path& dst_dir_path)
+	template<>
+	static void WriteAll(std::vector<std::shared_ptr<SirFont>>& sirs, const fs::path& dst_dir_path)
 	{
-		for (auto sir : sirs) {
-			Write(*sir, fs::path(dst_dir_path).append(sir->filename + ".sir"));
+		for (auto& sir : sirs) {
+			Write(*sir, fs::path(dst_dir_path).append(sir->filename + SirFont::XmlExtension));
+			SirPngWriter::Write(*sir, 0, fs::path(dst_dir_path).append(sir->filename + SirFont::DefaultPngExtension));
+			SirPngWriter::Write(*sir, 1, fs::path(dst_dir_path).append(sir->filename + SirFont::BorderPngExtension));
 		}
 	}
 
