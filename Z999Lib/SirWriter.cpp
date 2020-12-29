@@ -1038,3 +1038,225 @@ void SirWriter::Write(const SirMap& sir, fs::path file_path)
 	std::ofstream ofs(file_path, std::ios::binary);
 	ofs.write(buffer.data(), buffer.size());
 }
+
+void SirWriter::Write(const SirCredit& sir, fs::path file_path)
+{
+	uint64_t node_count = sir.nodes.size();
+	uint64_t item_count = 0;
+	uint64_t data_size = 0;
+	uint64_t item_offsets_size = 0;
+	for (auto& n : sir.nodes) {
+		auto item_size = n->items.size();
+		data_size += n->Size();
+		item_count += item_size;
+		item_offsets_size += item_size * sizeof(uint64_t) + 16;
+	}
+	auto padding_data_size = (4 - (data_size & 0x03)) & 0x03;
+
+	uint64_t info_beg = 20 + data_size + padding_data_size;
+
+	uint64_t footer_beg = info_beg + item_offsets_size;
+
+	uint64_t footer_end = footer_beg + (node_count * 2 + 5) * sizeof(uint64_t);
+	auto padding_footer = (16 - (footer_end & 0x0F)) & 0x0F;
+	footer_end += padding_footer;
+
+	uintvar v(info_beg - 12);
+
+	uint64_t buffer_size = footer_end + (2 + v.bytes.size()) + item_count + (sir.nodes.size() * 2 + 1); // footer
+	auto padding_buffer = (16 - (buffer_size & 0x0F)) & 0x0F;
+	buffer_size += padding_buffer;
+
+	std::vector<char> buffer;
+	buffer.resize(buffer_size);
+
+	auto start_pos = buffer.data();
+	auto curr_pos = start_pos;
+
+	MemWriter writer(curr_pos);
+	writer.WriteArray(sir.header_sig, 4);
+	writer.Write(footer_beg);
+	writer.Write(footer_end);
+
+	std::vector<uint64_t> offsets_data;
+	offsets_data.reserve(sir.nodes.size());
+	for (auto& n : sir.nodes) {
+		offsets_data.push_back(writer.pos - start_pos);
+		writer.WriteString(n->name);
+		for (auto& item : n->items) {
+			writer.WriteString(item->text);
+		}
+	}
+	for (int i = 0; i < padding_data_size; i++)
+		writer.Write((uint8_t)0xAA);
+
+	std::vector<uint64_t> offsets_info;
+	offsets_info.reserve(offsets_data.size());
+	for (int i = 0; i < sir.nodes.size(); i++) {
+		auto& n = sir.nodes[i];
+		auto offset = offsets_data[i];
+		offset += n->name.length() + 1;
+		offsets_info.push_back(writer.pos - start_pos);
+		for (auto& item : n->items) {
+			writer.Write(offset); offset += item->text.length() + 1;
+		}
+
+		for (int i = 0; i < 2; i++)
+			writer.Write((uint64_t)0);
+	}
+
+	for (int i = 0; i < offsets_data.size(); i++) {
+		auto& n = sir.nodes[i];
+		auto offset = offsets_data[i];
+		writer.Write(offset); offset += n->name.length() + 1;
+		writer.Write(offsets_info[i]);
+	}
+
+	for (int i = 0; i < 3; i++) {
+		writer.Write((uint64_t)0);
+	}
+	writer.Write(footer_beg);
+	writer.Write((uint64_t)0);
+
+	for (int i = 0; i < padding_footer; i++)
+		writer.Write((uint8_t)0xAA);
+
+	writer.Write((uint8_t)0x04);
+	writer.Write((uint8_t)0x08);
+	writer.WriteArray(v.bytes);
+
+	for (auto& n : sir.nodes) {
+		auto item_count = (int)n->items.size();
+		for (int i = 0; i < item_count; i++) {
+			writer.Write((uint8_t)(i + 1 == item_count ? 0x18 : 0x08));
+		}
+	}
+
+	for (uint64_t i = 0; i < node_count; i++) {
+		writer.Write((uint8_t)0x08);
+		writer.Write((uint8_t)(i + 1 == node_count ? 0x20 : 0x08));
+	}
+
+	writer.Write((uint8_t)0x00);
+	for (int i = 0; i < padding_buffer; i++)
+		writer.Write((uint8_t)0xAA);
+
+	std::ofstream ofs(file_path, std::ios::binary);
+	ofs.write(buffer.data(), buffer.size());
+}
+
+void SirWriter::Write(const SirRoom& sir, fs::path file_path)
+{
+	uint64_t node_count = sir.nodes.size();
+	uint64_t item_count = 0;
+	uint64_t data_size = 0;
+	uint64_t item_offsets_size = 0;
+	for (auto& n : sir.nodes) {
+		auto item_size = n->items.size();
+		data_size += n->Size();
+		item_count += item_size;
+		item_offsets_size += item_size * (sizeof(uint64_t) * 5) + 16;
+	}
+	auto padding_data_size = (4 - (data_size & 0x03)) & 0x03;
+
+	uint64_t info_beg = 20 + data_size + padding_data_size;
+
+	uint64_t footer_beg = info_beg + item_offsets_size;
+
+	uint64_t footer_end = footer_beg + (node_count * 2 + 5) * sizeof(uint64_t);
+	auto padding_footer = (16 - (footer_end & 0x0F)) & 0x0F;
+	footer_end += padding_footer;
+
+	uintvar v(info_beg - 12);
+
+	uint64_t buffer_size = footer_end + (2 + v.bytes.size()) + item_count * 5 + (sir.nodes.size() * 2 + 1); // footer
+	auto padding_buffer = (16 - (buffer_size & 0x0F)) & 0x0F;
+	buffer_size += padding_buffer;
+
+	std::vector<char> buffer;
+	buffer.resize(buffer_size);
+
+	auto start_pos = buffer.data();
+	auto curr_pos = start_pos;
+
+	MemWriter writer(curr_pos);
+	writer.WriteArray(sir.header_sig, 4);
+	writer.Write(footer_beg);
+	writer.Write(footer_end);
+
+	std::vector<uint64_t> offsets_data;
+	offsets_data.reserve(sir.nodes.size());
+	for (auto& n : sir.nodes) {
+		offsets_data.push_back(writer.pos - start_pos);
+		writer.WriteString(n->name);
+		for (auto& item : n->items) {
+			writer.WriteString(item->id);
+			writer.WriteString(item->text);
+			writer.WriteString(item->key);
+			writer.WriteString(item->in);
+			writer.WriteString(item->out);
+		}
+	}
+	for (int i = 0; i < padding_data_size; i++)
+		writer.Write((uint8_t)0xAA);
+
+	std::vector<uint64_t> offsets_info;
+	offsets_info.reserve(offsets_data.size());
+	for (int i = 0; i < sir.nodes.size(); i++) {
+		auto& n = sir.nodes[i];
+		auto offset = offsets_data[i];
+		offset += n->name.length() + 1;
+		offsets_info.push_back(writer.pos - start_pos);
+		for (auto& item : n->items) {
+			writer.Write(offset); offset += item->id.length() + 1;
+			writer.Write(offset); offset += item->text.length() + 1;
+			writer.Write(offset); offset += item->key.length() + 1;
+			writer.Write(offset); offset += item->in.length() + 1;
+			writer.Write(offset); offset += item->out.length() + 1;
+		}
+
+		for (int i = 0; i < 2; i++)
+			writer.Write((uint64_t)0);
+	}
+
+	for (int i = 0; i < offsets_data.size(); i++) {
+		auto& n = sir.nodes[i];
+		auto offset = offsets_data[i];
+		writer.Write(offset); offset += n->name.length() + 1;
+		writer.Write(offsets_info[i]);
+	}
+
+	for (int i = 0; i < 3; i++) {
+		writer.Write((uint64_t)0);
+	}
+	writer.Write(footer_beg);
+	writer.Write((uint64_t)0);
+
+	for (int i = 0; i < padding_footer; i++)
+		writer.Write((uint8_t)0xAA);
+
+	writer.Write((uint8_t)0x04);
+	writer.Write((uint8_t)0x08);
+	writer.WriteArray(v.bytes);
+
+	for (auto& n : sir.nodes) {
+		auto item_count = (int)n->items.size();
+		for (int i = 0; i < item_count; i++) {
+			for (int j = 0; j < 4; j++)
+				writer.Write((uint8_t)0x08);
+			writer.Write((uint8_t)(i + 1 == item_count ? 0x18 : 0x08));
+		}
+	}
+
+	for (uint64_t i = 0; i < node_count; i++) {
+		writer.Write((uint8_t)0x08);
+		writer.Write((uint8_t)(i + 1 == node_count ? 0x20 : 0x08));
+	}
+
+	writer.Write((uint8_t)0x00);
+	for (int i = 0; i < padding_buffer; i++)
+		writer.Write((uint8_t)0xAA);
+
+	std::ofstream ofs(file_path, std::ios::binary);
+	ofs.write(buffer.data(), buffer.size());
+}

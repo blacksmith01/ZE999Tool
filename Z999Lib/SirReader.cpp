@@ -2,12 +2,10 @@
 
 std::shared_ptr<SirDlg> SirReader::ReadDlg(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirDlg>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 	auto curr_pos = orig_pos;
 
-	memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+	curr_pos += 4;
 	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto content_pos = curr_pos;
@@ -27,6 +25,8 @@ std::shared_ptr<SirDlg> SirReader::ReadDlg(std::string filename, const std::span
 		offsets.push_back(offset);
 	}
 
+	auto sir = std::make_shared<SirDlg>();
+	sir->filename = filename;
 	sir->nodes.reserve(offsets.size());
 	for (int i = 0; i < offsets.size(); i += 4) {
 
@@ -74,12 +74,10 @@ bool SirReader::IsValidDlg(const std::span<char>& buffer)
 
 std::shared_ptr<SirName> SirReader::ReadName(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirName>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 	auto curr_pos = orig_pos;
 
-	memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+	curr_pos += 4;
 	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto content_pos = curr_pos;
@@ -112,6 +110,8 @@ std::shared_ptr<SirName> SirReader::ReadName(std::string filename, const std::sp
 		throw std::exception("invalid memory access");
 	}
 
+	auto sir = std::make_shared<SirName>();
+	sir->filename = filename;
 	sir->nodes.reserve(offsets.size());
 	for (int i = 0; i < offsets.size(); i += 4) {
 		sir->nodes.push_back(ReadNameNode(buffer, offsets[i]));
@@ -157,12 +157,10 @@ bool SirReader::IsValidName(const std::span<char>& buffer)
 
 std::shared_ptr<SirFont> SirReader::ReadFont(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirFont>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 	auto curr_pos = orig_pos;
 
-	memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+	curr_pos += 4;
 	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto content_pos = curr_pos;
@@ -171,14 +169,19 @@ std::shared_ptr<SirFont> SirReader::ReadFont(std::string filename, const std::sp
 	if (buffer.size() < footer_end) {
 		throw std::exception("invalid memory access");
 	}
+	
 	auto footer_count = *((uint64_t*)(orig_pos + footer_beg));
-	memcpy(&sir->footer_unknown_values[0], orig_pos + footer_beg + 8, 12);
 
 	std::vector<uint32_t> footer_font_values;
 	for (auto i = 0; i < footer_count; i++) {
 		footer_font_values.push_back(*(uint32_t*)(orig_pos + footer_beg + 8 + 12 + i * 4));
 	}
 
+	auto sir = std::make_shared<SirFont>();
+	sir->filename = filename;
+
+	memcpy(&sir->footer_unknown_values[0], orig_pos + footer_beg + 8, 12);
+	
 	sir->nodes.reserve(footer_font_values.size());
 	uint64_t offset = 4 + 8 + 8;
 	while (offset < footer_beg) {
@@ -243,12 +246,10 @@ bool SirReader::IsValidFont(const std::span<char>& buffer)
 
 std::shared_ptr<SirItem> SirReader::ReadItem(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirItem>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 	auto curr_pos = orig_pos;
 
-	memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+	curr_pos += 4;
 	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto content_pos = curr_pos;
@@ -268,6 +269,8 @@ std::shared_ptr<SirItem> SirReader::ReadItem(std::string filename, const std::sp
 		offsets.push_back(curr_pos - orig_pos);
 	}
 
+	auto sir = std::make_shared<SirItem>();
+	sir->filename = filename;
 	sir->nodes.reserve(offsets.size());
 	for (int i = 0; i < offsets.size(); i++) {
 		sir->nodes.push_back(ReadItemNode(buffer, offsets[i]));
@@ -331,12 +334,10 @@ bool SirReader::IsValidItem(const std::span<char>& buffer)
 
 std::shared_ptr<SirMsg> SirReader::ReadMsg(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirMsg>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 	auto curr_pos = orig_pos;
 
-	memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+	curr_pos += 4;
 	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto content_pos = curr_pos;
@@ -365,6 +366,9 @@ std::shared_ptr<SirMsg> SirReader::ReadMsg(std::string filename, const std::span
 		data_max_pos--;
 	}
 
+	auto sir = std::make_shared<SirMsg>();
+	sir->filename = filename;
+	
 	curr_pos += sizeof(uint64_t) * 3;
 	sir->unknown = *(const uint64_t*)curr_pos;
 
@@ -417,13 +421,11 @@ bool SirReader::IsValidMsg(const std::span<char>& buffer)
 
 std::shared_ptr<SirDesc> SirReader::ReadDesc(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirDesc>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 
 	MemReader reader(buffer);
 
-	reader.ReadArray(4, sir->header_sig);
+	reader.Forward(4);
 	auto footer_beg = reader.Read<uint64_t>();
 	auto footer_end = reader.Read<uint64_t>();
 
@@ -441,11 +443,13 @@ std::shared_ptr<SirDesc> SirReader::ReadDesc(std::string filename, const std::sp
 		throw std::exception("invalid memory access");
 	}
 
-	sir->sound_file_name = orig_pos + sound_file_name_offset;
-
 	if (buffer.size() < text_offset || buffer.size() < start_offset || buffer.size() < var_offset) {
 		throw std::exception("invalid memory access");
 	}
+
+	auto sir = std::make_shared<SirDesc>();
+	sir->filename = filename;
+	sir->sound_file_name = orig_pos + sound_file_name_offset;
 
 	reader.Seek(node_info_offset);
 	std::vector<uint64_t> bin_data_offsets;
@@ -582,13 +586,11 @@ bool SirReader::IsValidDesc(const std::span<char>& buffer)
 
 std::shared_ptr<SirFChart> SirReader::ReadFChart(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirFChart>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 
 	MemReader reader(buffer);
 
-	reader.ReadArray(4, sir->header_sig);
+	reader.Forward(4);
 	auto footer_beg = reader.Read<uint64_t>();
 	auto footer_end = reader.Read<uint64_t>();
 
@@ -608,6 +610,9 @@ std::shared_ptr<SirFChart> SirReader::ReadFChart(std::string filename, const std
 		reader.Forward(sizeof(uint64_t) * 10);
 	}
 
+	auto sir = std::make_shared<SirFChart>();
+	sir->filename = filename;
+	
 	for (auto o : offsets)
 	{
 		sir->nodes.push_back(ReadFChartNode(buffer, o));
@@ -710,12 +715,10 @@ bool SirReader::IsValidFChart(const std::span<char>& buffer)
 
 std::shared_ptr<SirDoc> SirReader::ReadDoc(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirDoc>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 	auto curr_pos = orig_pos;
 
-	memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+	curr_pos += 4;
 	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto content_pos = curr_pos;
@@ -744,6 +747,9 @@ std::shared_ptr<SirDoc> SirReader::ReadDoc(std::string filename, const std::span
 		data_max_pos--;
 	}
 
+	auto sir = std::make_shared<SirDoc>();
+	sir->filename = filename;
+	
 	sir->nodes.reserve(offsets.size());
 	for (int i = 0; i < offsets.size(); i++) {
 
@@ -807,12 +813,10 @@ bool SirReader::IsValidDoc(const std::span<char>& buffer)
 
 std::shared_ptr<SirMap> SirReader::ReadMap(std::string filename, const std::span<char>& buffer)
 {
-	auto sir = std::make_shared<SirMap>();
-	sir->filename = filename;
 	const char* orig_pos = buffer.data();
 	auto curr_pos = orig_pos;
 
-	memcpy(sir->header_sig, curr_pos, 4); curr_pos += 4;
+	curr_pos += 4;
 	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
 	auto content_pos = curr_pos;
@@ -832,6 +836,9 @@ std::shared_ptr<SirMap> SirReader::ReadMap(std::string filename, const std::span
 		offsets.push_back(curr_pos - orig_pos);
 	}
 
+	auto sir = std::make_shared<SirMap>();
+	sir->filename = filename;
+	
 	sir->nodes.reserve(offsets.size());
 	for (int i = 0; i < offsets.size(); i++) {
 		sir->nodes.push_back(ReadMapNode(buffer, offsets[i]));
@@ -846,10 +853,10 @@ std::shared_ptr<SirMap::Node> SirReader::ReadMapNode(const std::span<char>& buff
 	reader.Seek(offset);
 
 	auto n = std::make_shared<SirMap::Node>();
-	auto sec_name_offset = reader.Read<uint64_t>();
+	auto node_name_offset = reader.Read<uint64_t>();
 	auto items_offset = reader.Read<uint64_t>();
 
-	reader.Seek(sec_name_offset);
+	reader.Seek(node_name_offset);
 	n->name = reader.Ptr();
 
 	reader.Seek(items_offset);
@@ -893,6 +900,190 @@ bool SirReader::IsValidMap(const std::span<char>& buffer)
 
 		auto n = ReadMapNode(buffer, reader.Read<uint64_t>());
 		if (n->name != "A01" || n->items.empty()) {
+			return false;
+		}
+		return true;
+	}
+	catch (const std::exception& e) {
+		return false;
+	}
+}
+
+std::shared_ptr<SirCredit> SirReader::ReadCredit(std::string filename, const std::span<char>& buffer)
+{
+	const char* orig_pos = buffer.data();
+	auto curr_pos = orig_pos;
+
+	curr_pos += 4;
+	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
+	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
+	auto content_pos = curr_pos;
+	auto content_size = (orig_pos + footer_beg) - content_pos;
+
+	if (buffer.size() < footer_end) {
+		throw std::exception("invalid memory access");
+	}
+	curr_pos = orig_pos + footer_beg;
+
+	std::vector<uint64_t> offsets;
+	for (int i = 0; i < (footer_end - footer_beg); i += 16, curr_pos += 16) {
+		auto offset = *(const uint64_t*)curr_pos;
+		if (offset == 0) {
+			break;
+		}
+		offsets.push_back(curr_pos - orig_pos);
+	}
+
+	auto sir = std::make_shared<SirCredit>();
+	sir->filename = filename;
+	
+	sir->nodes.reserve(offsets.size());
+	for (int i = 0; i < offsets.size(); i++) {
+		sir->nodes.push_back(ReadCreditNode(buffer, offsets[i]));
+	}
+
+	return sir;
+}
+std::shared_ptr<SirCredit::Node> SirReader::ReadCreditNode(const std::span<char>& buffer, uint64_t offset)
+{
+	auto size = buffer.size();
+	MemReader reader(buffer);
+	reader.Seek(offset);
+
+	auto n = std::make_shared<SirCredit::Node>();
+	auto node_name_offset = reader.Read<uint64_t>();
+	auto items_offset = reader.Read<uint64_t>();
+
+	reader.Seek(node_name_offset);
+	n->name = reader.Ptr();
+
+	reader.Seek(items_offset);
+	do
+	{
+		auto item_offset = reader.Read<uint64_t>();
+		if (item_offset == 0)
+			break;
+
+		auto curr_offset = reader.CurrPos();
+
+		auto item = std::make_shared<SirCredit::Node::Item>();
+		reader.Seek(item_offset);
+		item->id = n->items.size() + 1;
+		item->text = reader.Ptr();
+		n->items.push_back(item);
+
+		reader.Seek(curr_offset);
+
+	} while (reader.CurrPos() < size);
+
+	return n;
+}
+bool SirReader::IsValidCredit(const std::span<char>& buffer)
+{
+	try {
+		MemReader reader(buffer);
+		reader.Forward(4);
+
+		auto n = ReadCreditNode(buffer, reader.Read<uint64_t>());
+		if (n->name != "AEnding" || n->items.empty()) {
+			return false;
+		}
+		return true;
+	}
+	catch (const std::exception& e) {
+		return false;
+	}
+}
+
+std::shared_ptr<SirRoom> SirReader::ReadRoom(std::string filename, const std::span<char>& buffer)
+{
+	const char* orig_pos = buffer.data();
+	auto curr_pos = orig_pos;
+
+	curr_pos += 4;
+	auto footer_beg = *(uint64_t*)curr_pos; curr_pos += 8;
+	auto footer_end = *(uint64_t*)curr_pos; curr_pos += 8;
+	auto content_pos = curr_pos;
+	auto content_size = (orig_pos + footer_beg) - content_pos;
+
+	if (buffer.size() < footer_end) {
+		throw std::exception("invalid memory access");
+	}
+	curr_pos = orig_pos + footer_beg;
+
+	std::vector<uint64_t> offsets;
+	for (int i = 0; i < (footer_end - footer_beg); i += 16, curr_pos += 16) {
+		auto offset = *(const uint64_t*)curr_pos;
+		if (offset == 0) {
+			break;
+		}
+		offsets.push_back(curr_pos - orig_pos);
+	}
+
+	auto sir = std::make_shared<SirRoom>();
+	sir->filename = filename;
+
+	sir->nodes.reserve(offsets.size());
+	for (int i = 0; i < offsets.size(); i++) {
+		sir->nodes.push_back(ReadRoomNode(buffer, offsets[i]));
+	}
+
+	return sir;
+}
+std::shared_ptr<SirRoom::Node> SirReader::ReadRoomNode(const std::span<char>& buffer, uint64_t offset)
+{
+	auto size = buffer.size();
+	MemReader reader(buffer);
+	reader.Seek(offset);
+
+	auto n = std::make_shared<SirRoom::Node>();
+	auto node_name_offset = reader.Read<uint64_t>();
+	auto items_offset = reader.Read<uint64_t>();
+
+	reader.Seek(node_name_offset);
+	n->name = reader.Ptr();
+
+	reader.Seek(items_offset);
+	do
+	{
+		std::array<uint64_t, 5> item_offsets;
+		item_offsets[0] = reader.Read<uint64_t>();
+		if (item_offsets[0] == 0)
+			break;
+
+		for (int i = 1; i < 5; i++)
+			item_offsets[i] = reader.Read<uint64_t>();
+
+		auto curr_offset = reader.CurrPos();
+
+		auto item = std::make_shared<SirRoom::Node::Item>();
+		reader.Seek(item_offsets[0]);
+		item->id = reader.Ptr();
+		reader.Seek(item_offsets[1]);
+		item->text = reader.Ptr();
+		reader.Seek(item_offsets[2]);
+		item->key = reader.Ptr();
+		reader.Seek(item_offsets[3]);
+		item->in = reader.Ptr();
+		reader.Seek(item_offsets[4]);
+		item->out = reader.Ptr();
+		
+		n->items.push_back(item);
+
+		reader.Seek(curr_offset);
+
+	} while (reader.CurrPos() < size);
+
+	return n;
+}
+bool SirReader::IsValidRoom(const std::span<char>& buffer)
+{
+	try {
+		MemReader reader(buffer);
+		reader.Forward(4);
+
+		auto n = ReadRoomNode(buffer, reader.Read<uint64_t>());
+		if (n->name != "A ROOT" || n->items.empty() || n->items.front()->key.empty() || n->items.front()->key[0] != '$') {
 			return false;
 		}
 		return true;

@@ -25,15 +25,17 @@ bool SirTool::Unpack(const fs::path& src_path, const fs::path& dst_dir_path)
 		fs::create_directory(dst_dir_path);
 	}
 
-	SirXmlWriter::WriteAll(dlgs, dst_dir_path);
-	SirXmlWriter::WriteAll(names, dst_dir_path);
-	SirXmlWriter::WriteAll(fonts, dst_dir_path);
-	SirXmlWriter::WriteAll(items, dst_dir_path);
-	SirXmlWriter::WriteAll(msgs, dst_dir_path);
-	SirXmlWriter::WriteAll(descs, dst_dir_path);
-	SirXmlWriter::WriteAll(fcharts, dst_dir_path);
-	SirXmlWriter::WriteAll(docs, dst_dir_path);
-	SirXmlWriter::WriteAll(maps, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.dlgs, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.names, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.fonts, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.items, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.msgs, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.descs, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.fcharts, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.docs, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.maps, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.credits, dst_dir_path);
+	SirXmlWriter::WriteAll(org_set.rooms, dst_dir_path);
 
 	return true;
 }
@@ -46,13 +48,13 @@ bool SirTool::Repack(const fs::path& src_path, const fs::path& dst_dir_path)
 
 	if (fs::is_regular_file(src_path)) {
 		if (src_path.extension() == ".xml") {
-			ReadXml(src_path);
+			ReadXml(src_path, org_set);
 		}
 	}
 	else {
 		for (auto i : fs::recursive_directory_iterator{ src_path }) {
 			if (i.is_regular_file() && i.path().extension() == ".xml") {
-				ReadXml(i.path());
+				ReadXml(i.path(), org_set);
 			}
 		}
 	}
@@ -61,15 +63,17 @@ bool SirTool::Repack(const fs::path& src_path, const fs::path& dst_dir_path)
 		fs::create_directory(dst_dir_path);
 	}
 
-	SirWriter::WriteAll(dlgs, dst_dir_path);
-	SirWriter::WriteAll(names, dst_dir_path);
-	SirWriter::WriteAll(fonts, dst_dir_path);
-	SirWriter::WriteAll(items, dst_dir_path);
-	SirWriter::WriteAll(msgs, dst_dir_path);
-	SirWriter::WriteAll(descs, dst_dir_path);
-	SirWriter::WriteAll(fcharts, dst_dir_path);
-	SirWriter::WriteAll(docs, dst_dir_path);
-	SirWriter::WriteAll(maps, dst_dir_path);
+	SirWriter::WriteAll(org_set.dlgs, dst_dir_path);
+	SirWriter::WriteAll(org_set.names, dst_dir_path);
+	SirWriter::WriteAll(org_set.fonts, dst_dir_path);
+	SirWriter::WriteAll(org_set.items, dst_dir_path);
+	SirWriter::WriteAll(org_set.msgs, dst_dir_path);
+	SirWriter::WriteAll(org_set.descs, dst_dir_path);
+	SirWriter::WriteAll(org_set.fcharts, dst_dir_path);
+	SirWriter::WriteAll(org_set.docs, dst_dir_path);
+	SirWriter::WriteAll(org_set.maps, dst_dir_path);
+	SirWriter::WriteAll(org_set.credits, dst_dir_path);
+	SirWriter::WriteAll(org_set.rooms, dst_dir_path);
 
 	return true;
 }
@@ -83,15 +87,17 @@ bool SirTool::CopyValid(const fs::path& org_dir_path, const fs::path& dst_dir_pa
 	ReadSirDir(org_dir_path);
 
 	std::vector<std::string> filenames;
-	for (auto& sir : dlgs) filenames.push_back(sir->filename);
-	for (auto& sir : names) filenames.push_back(sir->filename);
-	for (auto& sir : fonts) filenames.push_back(sir->filename);
-	for (auto& sir : items) filenames.push_back(sir->filename);
-	for (auto& sir : msgs) filenames.push_back(sir->filename);
-	for (auto& sir : descs) filenames.push_back(sir->filename);
-	for (auto& sir : fcharts) filenames.push_back(sir->filename);
-	for (auto& sir : docs) filenames.push_back(sir->filename);
-	for (auto& sir : maps) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.dlgs) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.names) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.fonts) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.items) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.msgs) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.descs) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.fcharts) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.docs) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.maps) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.credits) filenames.push_back(sir->filename);
+	for (auto& sir : org_set.rooms) filenames.push_back(sir->filename);
 
 	for (auto& fn : filenames) {
 		fs::copy_file(fs::path(org_dir_path).append(fn + ".sir"), fs::path(dst_dir_path).append(fn + ".sir"), fs::copy_options::overwrite_existing);
@@ -112,7 +118,7 @@ bool SirTool::GeneratePatchFontChars(const fs::path& org_dir_path, const fs::pat
 		auto ip = i.path();
 		if (i.is_regular_file() && ip.extension() == ".xml") {
 			if (!StrCmpEndWith(ip.string(), SirFont::XmlExtension)) {
-				ReadXml(ip, true);
+				ReadXml(ip, patch_set);
 			}
 		}
 	}
@@ -164,7 +170,7 @@ bool SirTool::GeneratePatchFontData(const fs::path& org_dir_path, const fs::path
 		auto ip = i.path();
 		if (i.is_regular_file() && ip.extension() == ".xml") {
 			if (!StrCmpEndWith(ip.string(), SirFont::XmlExtension)) {
-				ReadXml(ip, true);
+				ReadXml(ip, patch_set);
 			}
 		}
 	}
@@ -191,7 +197,7 @@ bool SirTool::GeneratePatchFontData(const fs::path& org_dir_path, const fs::path
 
 	JpKeycodeAllocator keycode_alloc(0xF0, 0x00);
 	char temp_jp_char[3] = {};
-	for (auto& s : fonts) {
+	for (auto& s : org_set.fonts) {
 		for (auto& n : s->nodes) {
 			if (n->keycode[1] != 0) {
 				temp_jp_char[0] = n->keycode[1];
@@ -267,7 +273,7 @@ bool SirTool::GeneratePatchFontData(const fs::path& org_dir_path, const fs::path
 		fs::create_directory(dst_dir_path);
 	}
 
-	for (auto& f : fonts) {
+	for (auto& f : org_set.fonts) {
 		new_f.filename = f->filename;
 		new_f.footer_unknown_values = f->footer_unknown_values;
 		SirXmlWriter::Write(new_f, fs::path(dst_dir_path).append(new_f.filename + SirFont::XmlExtension));
@@ -280,8 +286,8 @@ bool SirTool::GeneratePatchFontData(const fs::path& org_dir_path, const fs::path
 
 void SirTool::RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<wchar_t>& w_keycodes)
 {
-	for (auto& ps : patch_dlgs) {
-		if (auto s = FindSirPtr(dlgs, ps->filename)) {
+	for (auto& ps : patch_set.dlgs) {
+		if (auto s = FindSirPtr(org_set.dlgs, ps->filename)) {
 			for (auto& pn : ps->nodes) {
 				if (auto n = stdext::FindPtr<SirDlg::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn) && (an->text != pn->text); })) {
 					RetrievePatchChars(pn->patch_text, scope_min, scope_max, w_keycodes);
@@ -290,8 +296,8 @@ void SirTool::RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<
 		}
 	}
 
-	for (auto& ps : patch_names) {
-		if (auto s = FindSirPtr(names, ps->filename)) {
+	for (auto& ps : patch_set.names) {
+		if (auto s = FindSirPtr(org_set.names, ps->filename)) {
 			for (auto& pn : ps->nodes) {
 				if (stdext::FindPtr<SirName::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn) && an->name != pn->name; })) {
 					RetrievePatchChars(pn->patch_name, scope_min, scope_max, w_keycodes);
@@ -300,12 +306,12 @@ void SirTool::RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<
 		}
 	}
 
-	for (auto& ps : patch_items) {
-		if (auto s = FindSirPtr(items, ps->filename)) {
+	for (auto& ps : patch_set.items) {
+		if (auto s = FindSirPtr(org_set.items, ps->filename)) {
 			for (auto& pn : ps->nodes) {
 				if (auto n = stdext::FindPtr<SirItem::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn); })) {
 					for (auto& pi : pn->items) {
-						if (auto i = stdext::FindPtr<SirItem::Node::Item>(n->items, [&pi](std::shared_ptr<SirItem::Node::Item> f) { return f->Equal(*pi) && f->text1!=pi->text1;})) {
+						if (auto i = stdext::FindPtr<SirItem::Node::Item>(n->items, [&pi](std::shared_ptr<SirItem::Node::Item> f) { return f->Equal(*pi) && f->text1 != pi->text1; })) {
 							RetrievePatchChars(pi->patch_text, scope_min, scope_max, w_keycodes);
 						}
 					}
@@ -314,8 +320,8 @@ void SirTool::RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<
 		}
 	}
 
-	for (auto& ps : patch_msgs) {
-		if (auto s = FindSirPtr(msgs, ps->filename)) {
+	for (auto& ps : patch_set.msgs) {
+		if (auto s = FindSirPtr(org_set.msgs, ps->filename)) {
 			for (auto& pn : ps->nodes) {
 				if (auto n = stdext::FindPtr<SirMsg::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn) && an->AllText() != pn->AllText(); })) {
 					for (auto& pt : pn->patch_texts) {
@@ -326,8 +332,8 @@ void SirTool::RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<
 		}
 	}
 
-	for (auto& ps : patch_descs) {
-		if (auto s = FindSirPtr(descs, ps->filename)) {
+	for (auto& ps : patch_set.descs) {
+		if (auto s = FindSirPtr(org_set.descs, ps->filename)) {
 			for (auto& pt : ps->texts) {
 				if (auto t = stdext::FindPtr<SirDesc::Text>(s->texts, [&pt](auto& at) { return at->Equal(*pt) && at->value != pt->value; })) {
 					RetrievePatchChars(pt->patch_text, scope_min, scope_max, w_keycodes);
@@ -336,8 +342,8 @@ void SirTool::RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<
 		}
 	}
 
-	for (auto& ps : patch_fcharts) {
-		if (auto s = FindSirPtr(fcharts, ps->filename)) {
+	for (auto& ps : patch_set.fcharts) {
+		if (auto s = FindSirPtr(org_set.fcharts, ps->filename)) {
 			for (auto& pn : ps->nodes) {
 				if (auto n = stdext::FindPtr<SirFChart::Node>(s->nodes, [&pn](auto& an) { return an->Equal(*pn); })) {
 					if (pn->text != n->text) {
@@ -359,8 +365,8 @@ void SirTool::RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<
 		}
 	}
 
-	for (auto& ps : patch_docs) {
-		if (auto s = FindSirPtr(docs, ps->filename)) {
+	for (auto& ps : patch_set.docs) {
+		if (auto s = FindSirPtr(org_set.docs, ps->filename)) {
 			for (auto& pn : ps->nodes) {
 				if (auto n = stdext::FindPtr<SirDoc::Node>(s->nodes, [&pn](auto& an) { return an->Equal(*pn) && an->AllText() != pn->AllText(); })) {
 					RetrievePatchChars(pn->patch_text1, scope_min, scope_max, w_keycodes);
@@ -373,12 +379,40 @@ void SirTool::RetrievePatchChars(wchar_t scope_min, wchar_t scope_max, std::set<
 		}
 	}
 
-	for (auto& ps : patch_maps) {
-		if (auto s = FindSirPtr(maps, ps->filename)) {
+	for (auto& ps : patch_set.maps) {
+		if (auto s = FindSirPtr(org_set.maps, ps->filename)) {
 			for (auto& pn : ps->nodes) {
 				if (auto n = stdext::FindPtr<SirMap::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn); })) {
 					for (auto& pi : pn->items) {
-						if (auto i = stdext::FindPtr<SirMap::Node::Item>(n->items, [&pi](auto& ai) {return ai->Equal(*pi) && ai->text!=pi->text;})) {
+						if (auto i = stdext::FindPtr<SirMap::Node::Item>(n->items, [&pi](auto& ai) {return ai->Equal(*pi) && ai->text != pi->text; })) {
+							RetrievePatchChars(pi->patch_text, scope_min, scope_max, w_keycodes);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for (auto& ps : patch_set.credits) {
+		if (auto s = FindSirPtr(org_set.credits, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirCredit::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn); })) {
+					for (auto& pi : pn->items) {
+						if (auto i = stdext::FindPtr<SirCredit::Node::Item>(n->items, [&pi](auto& ai) {return ai->Equal(*pi) && ai->text != pi->text; })) {
+							RetrievePatchChars(pi->patch_text, scope_min, scope_max, w_keycodes);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for (auto& ps : patch_set.rooms) {
+		if (auto s = FindSirPtr(org_set.rooms, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirRoom::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn); })) {
+					for (auto& pi : pn->items) {
+						if (auto i = stdext::FindPtr<SirRoom::Node::Item>(n->items, [&pi](auto& ai) {return ai->Equal(*pi) && ai->text != pi->text; })) {
 							RetrievePatchChars(pi->patch_text, scope_min, scope_max, w_keycodes);
 						}
 					}
@@ -456,7 +490,7 @@ void SirTool::ReadExePatchFile(const fs::path& file_path, std::map<std::string, 
 
 void SirTool::RetriveAnsiChars(std::set<uint8_t>& ansi_map)
 {
-	for (auto& s : fonts) {
+	for (auto& s : org_set.fonts) {
 		for (auto& n : s->nodes) {
 			if (n->keycode[1] == 0) {
 				if ((uint8_t)n->keycode[0] <= 0x7E) {
@@ -496,7 +530,7 @@ bool SirTool::Patch(const fs::path& org_dir_path, const fs::path& patch_dir_path
 	for (auto i : fs::recursive_directory_iterator{ patch_dir_path }) {
 		if (i.is_regular_file()) {
 			if (i.path().extension() == ".xml") {
-				ReadXml(i.path(), true);
+				ReadXml(i.path(), patch_set);
 			}
 		}
 	}
@@ -514,12 +548,12 @@ bool SirTool::Patch(const fs::path& org_dir_path, const fs::path& patch_dir_path
 		auto mod_size = (std::size_t)std::atoi(option.c_str());
 
 		if (mod_size > 0) {
-			for (auto& f : fonts) {
+			for (auto& f : org_set.fonts) {
 				f->ReduceKanjiSize(keep_jpchars, mod_size);
 			}
 		}
 		else if (mod_size == 0) {
-			for (auto& f : fonts) {
+			for (auto& f : org_set.fonts) {
 				f->RemoveKanji(keep_jpchars);
 			}
 		}
@@ -534,224 +568,166 @@ bool SirTool::Patch(const fs::path& org_dir_path, const fs::path& patch_dir_path
 	std::vector<SirFChart*> patched_fcharts;
 	std::vector<SirDoc*> patched_docs;
 	std::vector<SirMap*> patched_maps;
+	std::vector<SirCredit*> patched_credits;
+	std::vector<SirRoom*> patched_rooms;
 
-	for (auto& ps : patch_fonts) {
-		auto f = FindSirPtr(fonts, ps->filename);
-		if (f == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : ps->nodes) {
-			if (pn->keycode[1] == 0) {
-				auto idx = stdext::FindIdx(f->nodes, [&pn](auto& elm) { return elm->keycode[1] == 0 && elm->keycode[0] == pn->keycode[0]; });
-				if (idx >= 0) {
-					f->nodes[idx] = pn;
+	for (auto& ps : patch_set.fonts) {
+		if (auto s = FindSirPtr(org_set.fonts, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (pn->keycode[1] == 0) {
+					auto idx = stdext::FindIdx(s->nodes, [&pn](auto& elm) { return elm->keycode[1] == 0 && elm->keycode[0] == pn->keycode[0]; });
+					if (idx >= 0) {
+						s->nodes[idx] = pn;
+					}
+				}
+				else {
+					patch_glyphs.emplace(utf8_to_wcs(pn->patch_keycode).front(), mbs_to_wcs(pn->SjisString(), L"").front());
+					s->nodes.push_back(pn);
 				}
 			}
-			else {
-				patch_glyphs.emplace(utf8_to_wcs(pn->patch_keycode).front(), mbs_to_wcs(pn->SjisString(), L"").front());
-				f->nodes.push_back(pn);
-			}
+			patched_fonts.push_back(s);
 		}
-		patched_fonts.push_back(f);
 	}
 
-	for (auto& ps : patch_dlgs) {
-		auto d = FindSirPtr(dlgs, ps->filename);
-		if (d == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : ps->nodes) {
-			auto n = stdext::FindPtr<SirDlg::Node>(d->nodes, [&pn](auto& elm) {
-				return elm->id__ == pn->id__ && elm->type == pn->type;
-			});
-			if (n == nullptr) {
-				continue;
+	for (auto& ps : patch_set.dlgs) {
+		if (auto s = FindSirPtr(org_set.dlgs, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirDlg::Node>(s->nodes, [&pn](auto& an) { return an->Equal(*pn) && an->text != pn->text; })) {
+					n->text = PatchText(pn->patch_text);
+				}
 			}
-
-			if (pn->text != n->text) {
-				n->text = PatchText(pn->patch_text);
-			}
+			patched_dlgs.push_back(s);
 		}
-		patched_dlgs.push_back(d);
 	}
 
-	for (auto& ps : patch_names) {
-		auto d = FindSirPtr(names, ps->filename);
-		if (d == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : ps->nodes) {
-			auto n = stdext::FindPtr<SirName::Node>(d->nodes, [&pn](auto& elm) {
-				return elm->key_name == pn->key_name && elm->key_msg == pn->key_msg;
-			});
-			if (n == nullptr) {
-				continue;
+	for (auto& ps : patch_set.names) {
+		if (auto s = FindSirPtr(org_set.names, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirName::Node>(s->nodes, [&pn](auto& an) { return an->Equal(*pn) && an->name != pn->name; })) {
+					n->name = PatchText(pn->patch_name);
+				}
 			}
-
-			if (pn->name != n->name) {
-				n->name = PatchText(pn->patch_name);
-			}
+			patched_names.push_back(s);
 		}
-		patched_names.push_back(d);
 	}
 
-	for (auto& ps : patch_items) {
-		auto d = FindSirPtr(items, ps->filename);
-		if (d == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : ps->nodes) {
-			auto n = stdext::FindPtr<SirItem::Node>(d->nodes, [&pn](auto& elm) {
-				return elm->name == pn->name;
-			});
-			if (n == nullptr) {
-				continue;
-			}
-
-			for (auto& pitem : pn->items) {
-				if (auto item = stdext::FindPtr<SirItem::Node::Item>(n->items, [&pitem](std::shared_ptr<SirItem::Node::Item> f) {
-					return f->key == pitem->key;
-				})) {
-					if (pitem->text1 != item->text1) {
-						item->text1 = PatchText(pitem->patch_text);
+	for (auto& ps : patch_set.items) {
+		if (auto s = FindSirPtr(org_set.items, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirItem::Node>(s->nodes, [&pn](auto& an) { return an->Equal(*pn); })) {
+					for (auto& pi : pn->items) {
+						if (auto i = stdext::FindPtr<SirItem::Node::Item>(n->items, [&pi](auto& ai) { return ai->Equal(*pi) && ai->text1 != pi->text1; })) {
+							i->text1 = PatchText(pi->patch_text);
+						}
 					}
 				}
 			}
+			patched_items.push_back(s);
 		}
-		patched_items.push_back(d);
 	}
 
-	for (auto& ps : patch_msgs) {
-		auto d = FindSirPtr(msgs, ps->filename);
-		if (d == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : ps->nodes) {
-			auto n = stdext::FindPtr<SirMsg::Node>(d->nodes, [&pn](auto& elm) {
-				return elm->key == pn->key;
-			});
-			if (n == nullptr) {
-				continue;
-			}
-
-			if (pn->AllText() != n->AllText()) {
-				n->texts.clear();
-				for (auto& pitem : pn->patch_texts) {
-					n->texts.push_back(PatchText(pitem));
-				}
-			}
-		}
-		patched_msgs.push_back(d);
-	}
-
-	for (auto& ps : patch_descs) {
-		auto d = FindSirPtr(descs, ps->filename);
-		if (d == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : ps->texts) {
-			auto n = stdext::FindPtr<SirDesc::Text>(d->texts, [&pn](auto& elm) {
-				return elm->temp_id == pn->temp_id;
-			});
-			if (n == nullptr) {
-				continue;
-			}
-
-			if (pn->value != n->value) {
-				n->value = PatchText(pn->patch_text);
-			}
-		}
-		patched_descs.push_back(d);
-	}
-
-	for (auto& pl : patch_fcharts) {
-		auto d = FindSirPtr(fcharts, pl->filename);
-		if (d == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : pl->nodes) {
-			auto n = stdext::FindPtr<SirFChart::Node>(d->nodes, [&pn](auto& elm) {
-				return elm->id1 == pn->id1 && elm->id2 == pn->id2;
-			});
-			if (n == nullptr) {
-				continue;
-			}
-
-			if (pn->text != n->text) {
-				n->text = PatchText(pn->patch_text);
-			}
-
-			for (auto& pitem : pn->items) {
-				if (auto item = stdext::FindPtr<SirFChart::Node::Item>(n->items, [&pitem](std::shared_ptr<SirFChart::Node::Item> f) {
-					return f->id1 == pitem->id1 && f->id2 == pitem->id2;
-				})) {
-					if (pitem->text != item->text) {
-						item->text = PatchText(pitem->patch_text);
+	for (auto& ps : patch_set.msgs) {
+		if (auto s = FindSirPtr(org_set.msgs, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirMsg::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn) && an->AllText() != pn->AllText(); })) {
+					n->texts.clear();
+					for (auto& pitem : pn->patch_texts) {
+						n->texts.push_back(PatchText(pitem));
 					}
 				}
 			}
+			patched_msgs.push_back(s);
 		}
-		patched_fcharts.push_back(d);
 	}
 
-	for (auto& ps : patch_docs) {
-		auto d = FindSirPtr(docs, ps->filename);
-		if (d == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : ps->nodes) {
-			auto n = stdext::FindPtr<SirDoc::Node>(d->nodes, [&pn](auto& elm) {
-				return elm->key1 == pn->key1 && elm->key2 == pn->key2;
-			});
-			if (n == nullptr) {
-				continue;
-			}
-
-			if (pn->AllText() != n->AllText()) {
-				n->contents.clear();
-				n->text1 = PatchText(pn->patch_text1);
-				n->text2 = PatchText(pn->patch_text2);
-				for (auto& pitem : pn->patch_contents) {
-					n->contents.push_back(PatchText(pitem));
+	for (auto& ps : patch_set.descs) {
+		if (auto s = FindSirPtr(org_set.descs, ps->filename)) {
+			for (auto& pn : ps->texts) {
+				if (auto n = stdext::FindPtr<SirDesc::Text>(s->texts, [&pn](auto& an) { return an->Equal(*pn) && an->value != pn->value; })) {
+					n->value = PatchText(pn->patch_text);
 				}
 			}
+			patched_descs.push_back(s);
 		}
-		patched_docs.push_back(d);
 	}
 
-	for (auto& ps : patch_maps) {
-		auto d = FindSirPtr(maps, ps->filename);
-		if (d == nullptr) {
-			continue;
-		}
-
-		for (auto& pn : ps->nodes) {
-			auto n = stdext::FindPtr<SirMap::Node>(d->nodes, [&pn](auto& elm) {
-				return elm->name == pn->name;
-			});
-			if (n == nullptr) {
-				continue;
-			}
-
-			for (auto& pitem : pn->items) {
-				if (auto item = stdext::FindPtr<SirMap::Node::Item>(n->items, [&pitem](std::shared_ptr<SirMap::Node::Item> f) {
-					return f->key == pitem->key;
-				})) {
-					if (pitem->text != item->text) {
-						item->text = PatchText(pitem->patch_text);
+	for (auto& pl : patch_set.fcharts) {
+		if (auto s = FindSirPtr(org_set.fcharts, pl->filename)) {
+			for (auto& pn : pl->nodes) {
+				if (auto n = stdext::FindPtr<SirFChart::Node>(s->nodes, [&pn](auto& an) {return an->Equal(*pn); })) {
+					if (pn->text != n->text) {
+						n->text = PatchText(pn->patch_text);
+					}
+					for (auto& pi : pn->items) {
+						if (auto i = stdext::FindPtr<SirFChart::Node::Item>(n->items, [&pi](auto& ai) { return ai->Equal(*pi) && ai->text != pi->text;})) {
+							i->text = PatchText(pi->patch_text);
+						}
 					}
 				}
 			}
+			patched_fcharts.push_back(s);
 		}
-		patched_maps.push_back(d);
+	}
+
+	for (auto& ps : patch_set.docs) {
+		if (auto s = FindSirPtr(org_set.docs, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirDoc::Node>(s->nodes, [&pn](auto& an) { return an->Equal(*pn) && an->AllText() != pn->AllText(); })) {
+					n->contents.clear();
+					n->text1 = PatchText(pn->patch_text1);
+					n->text2 = PatchText(pn->patch_text2);
+					for (auto& pitem : pn->patch_contents) {
+						n->contents.push_back(PatchText(pitem));
+					}
+				}
+			}
+			patched_docs.push_back(s);
+		}
+	}
+
+	for (auto& ps : patch_set.maps) {
+		if (auto s = FindSirPtr(org_set.maps, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirMap::Node>(s->nodes, [&pn](auto& elm) { return elm->Equal(*pn); })) {
+					for (auto& pi : pn->items) {
+						if (auto i = stdext::FindPtr<SirMap::Node::Item>(n->items, [&pi](auto& ai) { return ai->Equal(*pi) && ai->text != pi->text; })) {
+							i->text = PatchText(pi->patch_text);
+						}
+					}
+				}
+			}
+			patched_maps.push_back(s);
+		}
+	}
+
+	for (auto& ps : patch_set.credits) {
+		if (auto s = FindSirPtr(org_set.credits, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirCredit::Node>(s->nodes, [&pn](auto& elm) { return elm->Equal(*pn); })) {
+					for (auto& pi : pn->items) {
+						if (auto i = stdext::FindPtr<SirCredit::Node::Item>(n->items, [&pi](auto& ai) { return ai->Equal(*pi) && ai->text != pi->text; })) {
+							i->text = PatchText(pi->patch_text);
+						}
+					}
+				}
+			}
+			patched_credits.push_back(s);
+		}
+	}
+
+	for (auto& ps : patch_set.rooms) {
+		if (auto s = FindSirPtr(org_set.rooms, ps->filename)) {
+			for (auto& pn : ps->nodes) {
+				if (auto n = stdext::FindPtr<SirRoom::Node>(s->nodes, [&pn](auto& elm) { return elm->Equal(*pn); })) {
+					for (auto& pi : pn->items) {
+						if (auto i = stdext::FindPtr<SirRoom::Node::Item>(n->items, [&pi](auto& ai) { return ai->Equal(*pi) && ai->text != pi->text; })) {
+							i->text = PatchText(pi->patch_text);
+						}
+					}
+				}
+			}
+			patched_rooms.push_back(s);
+		}
 	}
 
 	if (!fs::exists(dst_dir_path)) {
@@ -767,6 +743,8 @@ bool SirTool::Patch(const fs::path& org_dir_path, const fs::path& patch_dir_path
 	SirWriter::WriteAll(patched_fcharts, dst_dir_path);
 	SirWriter::WriteAll(patched_docs, dst_dir_path);
 	SirWriter::WriteAll(patched_maps, dst_dir_path);
+	SirWriter::WriteAll(patched_credits, dst_dir_path);
+	SirWriter::WriteAll(patched_rooms, dst_dir_path);
 
 	return true;
 }
@@ -785,15 +763,15 @@ bool SirTool::ExePatch(const fs::path& org_dir_path, const fs::path& patch_dir_p
 		if (i.is_regular_file()) {
 			if (StrCmpEndWith(i.path().filename().string(), SirFont::XmlExtension))
 			{
-				ReadXml(i.path(), true);
+				ReadXml(i.path(), patch_set);
 			}
 		}
 	}
 
 	std::vector<SirFont*> patched_fonts;
 
-	for (auto& ps : patch_fonts) {
-		auto f = FindSirPtr(fonts, ps->filename);
+	for (auto& ps : patch_set.fonts) {
+		auto f = FindSirPtr(org_set.fonts, ps->filename);
 		if (f == nullptr) {
 			continue;
 		}
@@ -909,31 +887,37 @@ bool SirTool::ReadSirFile(const fs::path& file_path)
 	try {
 		auto rbuffer = std::span(buffer.data(), file_size);
 		if (SirReader::IsValidDlg(rbuffer)) {
-			dlgs.push_back(SirReader::ReadDlg(file_path.stem().string(), rbuffer));
+			org_set.dlgs.push_back(SirReader::ReadDlg(file_path.stem().string(), rbuffer));
 		}
 		else if (SirReader::IsValidName(rbuffer)) {
-			names.push_back(SirReader::ReadName(file_path.stem().string(), rbuffer));
+			org_set.names.push_back(SirReader::ReadName(file_path.stem().string(), rbuffer));
 		}
 		else if (SirReader::IsValidFont(rbuffer)) {
-			fonts.push_back(SirReader::ReadFont(file_path.stem().string(), rbuffer));
+			org_set.fonts.push_back(SirReader::ReadFont(file_path.stem().string(), rbuffer));
 		}
 		else if (SirReader::IsValidItem(rbuffer)) {
-			items.push_back(SirReader::ReadItem(file_path.stem().string(), rbuffer));
+			org_set.items.push_back(SirReader::ReadItem(file_path.stem().string(), rbuffer));
 		}
 		else if (SirReader::IsValidMsg(rbuffer)) {
-			msgs.push_back(SirReader::ReadMsg(file_path.stem().string(), rbuffer));
+			org_set.msgs.push_back(SirReader::ReadMsg(file_path.stem().string(), rbuffer));
 		}
 		else if (SirReader::IsValidDesc(rbuffer)) {
-			descs.push_back(SirReader::ReadDesc(file_path.stem().string(), rbuffer));
+			org_set.descs.push_back(SirReader::ReadDesc(file_path.stem().string(), rbuffer));
 		}
 		else if (SirReader::IsValidFChart(rbuffer)) {
-			fcharts.push_back(SirReader::ReadFChart(file_path.stem().string(), rbuffer));
+			org_set.fcharts.push_back(SirReader::ReadFChart(file_path.stem().string(), rbuffer));
 		}
 		else if (SirReader::IsValidDoc(rbuffer)) {
-			docs.push_back(SirReader::ReadDoc(file_path.stem().string(), rbuffer));
+			org_set.docs.push_back(SirReader::ReadDoc(file_path.stem().string(), rbuffer));
 		}
 		else if (SirReader::IsValidMap(rbuffer)) {
-			maps.push_back(SirReader::ReadMap(file_path.stem().string(), rbuffer));
+			org_set.maps.push_back(SirReader::ReadMap(file_path.stem().string(), rbuffer));
+		}
+		else if (SirReader::IsValidCredit(rbuffer)) {
+			org_set.credits.push_back(SirReader::ReadCredit(file_path.stem().string(), rbuffer));
+		}
+		else if (SirReader::IsValidRoom(rbuffer)) {
+			org_set.rooms.push_back(SirReader::ReadRoom(file_path.stem().string(), rbuffer));
 		}
 		else {
 			return false;
@@ -946,39 +930,45 @@ bool SirTool::ReadSirFile(const fs::path& file_path)
 	return true;
 }
 
-void SirTool::ReadXml(const fs::path& file_path, int is_patch)
+void SirTool::ReadXml(const fs::path& file_path, SirSet& set)
 {
 	auto filename = file_path.filename().string();
 
 	if (StrCmpEndWith(filename, SirDlg::XmlExtension)) {
-		(is_patch ? patch_dlgs : dlgs).push_back(SirXmlReader::ReadDlg(file_path));
+		set.dlgs.push_back(SirXmlReader::ReadDlg(file_path));
 	}
 	else if (StrCmpEndWith(filename, SirName::XmlExtension)) {
-		(is_patch ? patch_names : names).push_back(SirXmlReader::ReadName(file_path));
+		set.names.push_back(SirXmlReader::ReadName(file_path));
 	}
 	else if (StrCmpEndWith(filename, SirFont::XmlExtension)) {
 		auto filename_without_ext = filename.substr(0, filename.length() - 9);
-		(is_patch ? patch_fonts : fonts).push_back(SirXmlReader::ReadFont(
+		set.fonts.push_back(SirXmlReader::ReadFont(
 			file_path,
 			fs::path(file_path.parent_path()).append(filename_without_ext + SirFont::DefaultPngExtension),
 			fs::path(file_path.parent_path()).append(filename_without_ext + SirFont::BorderPngExtension)));
 	}
 	else if (StrCmpEndWith(filename, SirItem::XmlExtension)) {
-		(is_patch ? patch_items : items).push_back(SirXmlReader::ReadItem(file_path));
+		set.items.push_back(SirXmlReader::ReadItem(file_path));
 	}
 	else if (StrCmpEndWith(filename, SirMsg::XmlExtension)) {
-		(is_patch ? patch_msgs : msgs).push_back(SirXmlReader::ReadMsg(file_path));
+		set.msgs.push_back(SirXmlReader::ReadMsg(file_path));
 	}
 	else if (StrCmpEndWith(filename, SirDesc::XmlExtension)) {
-		(is_patch ? patch_descs : descs).push_back(SirXmlReader::ReadDesc(file_path));
+		set.descs.push_back(SirXmlReader::ReadDesc(file_path));
 	}
 	else if (StrCmpEndWith(filename, SirFChart::XmlExtension)) {
-		(is_patch ? patch_fcharts : fcharts).push_back(SirXmlReader::ReadFChart(file_path));
+		set.fcharts.push_back(SirXmlReader::ReadFChart(file_path));
 	}
 	else if (StrCmpEndWith(filename, SirDoc::XmlExtension)) {
-		(is_patch ? patch_docs : docs).push_back(SirXmlReader::ReadDoc(file_path));
+		set.docs.push_back(SirXmlReader::ReadDoc(file_path));
 	}
 	else if (StrCmpEndWith(filename, SirMap::XmlExtension)) {
-		(is_patch ? patch_maps : maps).push_back(SirXmlReader::ReadMap(file_path));
+		set.maps.push_back(SirXmlReader::ReadMap(file_path));
+	}
+	else if (StrCmpEndWith(filename, SirCredit::XmlExtension)) {
+		set.credits.push_back(SirXmlReader::ReadCredit(file_path));
+	}
+	else if (StrCmpEndWith(filename, SirRoom::XmlExtension)) {
+		set.rooms.push_back(SirXmlReader::ReadRoom(file_path));
 	}
 }

@@ -39,4 +39,12 @@ public:
 	static std::shared_ptr<SirMap> ReadMap(std::string filename, const std::span<char>& buffer);
 	static std::shared_ptr<SirMap::Node> ReadMapNode(const std::span<char>& buffer, uint64_t offset);
 	static bool IsValidMap(const std::span<char>& buffer);
+
+	static std::shared_ptr<SirCredit> ReadCredit(std::string filename, const std::span<char>& buffer);
+	static std::shared_ptr<SirCredit::Node> ReadCreditNode(const std::span<char>& buffer, uint64_t offset);
+	static bool IsValidCredit(const std::span<char>& buffer);
+
+	static std::shared_ptr<SirRoom> ReadRoom(std::string filename, const std::span<char>& buffer);
+	static std::shared_ptr<SirRoom::Node> ReadRoomNode(const std::span<char>& buffer, uint64_t offset);
+	static bool IsValidRoom(const std::span<char>& buffer);
 };

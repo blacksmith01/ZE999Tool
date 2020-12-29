@@ -28,4 +28,6 @@ public:
 	static void Write(const SirFChart& sir, fs::path file_path);
 	static void Write(const SirDoc& sir, fs::path file_path);
 	static void Write(const SirMap& sir, fs::path file_path);
+	static void Write(const SirCredit& sir, fs::path file_path);
+	static void Write(const SirRoom& sir, fs::path file_path);
 };

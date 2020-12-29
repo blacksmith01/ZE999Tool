@@ -350,3 +350,62 @@ void SirXmlWriter::Write(const SirMap& sir, fs::path file_path)
 	std::ofstream ofs(file_path);
 	ofs.write(xmlString.c_str(), xmlString.size());
 }
+
+void SirXmlWriter::Write(const SirCredit& sir, fs::path file_path)
+{
+	rapidxml::xml_document<char> doc;
+	auto node_sir = doc.allocate_node(rapidxml::node_element, "sir");
+	doc.append_node(node_sir);
+
+	auto node_dlgs = doc.allocate_node(rapidxml::node_element, "endings");
+	node_dlgs->append_attribute(doc.allocate_attribute("size", RapidXmlString(doc, sir.nodes.size())));
+	node_sir->append_node(node_dlgs);
+
+	for (auto& n : sir.nodes) {
+		auto node_dlg = doc.allocate_node(rapidxml::node_element, "ending");
+		node_dlg->append_attribute(doc.allocate_attribute("name", RapidXmlString(doc, mbs_to_utf8(n->name.c_str()))));
+		for (auto& item : n->items) {
+			auto node_item = doc.allocate_node(rapidxml::node_element, "texts");
+			node_item->append_attribute(doc.allocate_attribute("id", RapidXmlString(doc, item->id)));
+			node_item->append_attribute(doc.allocate_attribute("text", RapidXmlString(doc, mbs_to_utf8(item->text.c_str()))));
+			node_dlg->append_node(node_item);
+		}
+		node_dlgs->append_node(node_dlg);
+	}
+	std::string xmlString;
+	rapidxml::print(std::back_inserter(xmlString), doc);
+
+	std::ofstream ofs(file_path);
+	ofs.write(xmlString.c_str(), xmlString.size());
+}
+
+void SirXmlWriter::Write(const SirRoom& sir, fs::path file_path)
+{
+	rapidxml::xml_document<char> doc;
+	auto node_sir = doc.allocate_node(rapidxml::node_element, "sir");
+	doc.append_node(node_sir);
+
+	auto node_dlgs = doc.allocate_node(rapidxml::node_element, "roots");
+	node_dlgs->append_attribute(doc.allocate_attribute("size", RapidXmlString(doc, sir.nodes.size())));
+	node_sir->append_node(node_dlgs);
+
+	for (auto& n : sir.nodes) {
+		auto node_dlg = doc.allocate_node(rapidxml::node_element, "root");
+		node_dlg->append_attribute(doc.allocate_attribute("name", RapidXmlString(doc, mbs_to_utf8(n->name.c_str()))));
+		for (auto& item : n->items) {
+			auto node_item = doc.allocate_node(rapidxml::node_element, "room");
+			node_item->append_attribute(doc.allocate_attribute("id", RapidXmlString(doc, mbs_to_utf8(item->id.c_str()))));
+			node_item->append_attribute(doc.allocate_attribute("text", RapidXmlString(doc, mbs_to_utf8(item->text.c_str()))));
+			node_item->append_attribute(doc.allocate_attribute("key", RapidXmlString(doc, mbs_to_utf8(item->key.c_str()))));
+			node_item->append_attribute(doc.allocate_attribute("in", RapidXmlString(doc, mbs_to_utf8(item->in.c_str()))));
+			node_item->append_attribute(doc.allocate_attribute("out", RapidXmlString(doc, mbs_to_utf8(item->out.c_str()))));
+			node_dlg->append_node(node_item);
+		}
+		node_dlgs->append_node(node_dlg);
+	}
+	std::string xmlString;
+	rapidxml::print(std::back_inserter(xmlString), doc);
+
+	std::ofstream ofs(file_path);
+	ofs.write(xmlString.c_str(), xmlString.size());
+}

@@ -30,7 +30,7 @@ int main(int argc, const char* argv[])
 			}
 			BinTool tool;
 			tool.UnpackMT(ToAbsolutePath(argv[2]), ToAbsolutePath(argv[3]));
-			printf("Unpacked %lu dds, %lu png, %lu sir, %lu avi, %lu ogg, %lu dat.", 
+			printf("Unpacked %lu dds, %lu png, %lu sir, %lu avi, %lu ogg, %lu dat.",
 				tool.UnpackedCount(0), tool.UnpackedCount(1), tool.UnpackedCount(2), tool.UnpackedCount(3), tool.UnpackedCount(4), tool.UnpackedCount(5));
 		}
 		else if (cmd == "bin-patch") {
@@ -48,8 +48,7 @@ int main(int argc, const char* argv[])
 			SirTool tool;
 			if (!tool.Unpack(ToAbsolutePath(argv[2]), ToAbsolutePath(argv[3])))
 				break;
-			printf("Unpacked %llu Dlgs, %llu Names, %llu Fonts, %llu Items, %llu Msgs, %llu Descs, %llu FCharts, %llu Docs, %llu Maps.",
-				tool.dlgs.size(), tool.names.size(), tool.fonts.size(), tool.items.size(), tool.msgs.size(), tool.descs.size(), tool.fcharts.size(), tool.docs.size(), tool.maps.size());
+			printf("Unpacked %s.", tool.org_set.GetCountInfo().c_str());
 		}
 		else if (cmd == "sir-repack") {
 			if (argc < 4) {
@@ -58,8 +57,7 @@ int main(int argc, const char* argv[])
 			SirTool tool;
 			if (!tool.Repack(ToAbsolutePath(argv[2]), ToAbsolutePath(argv[3])))
 				break;
-			printf("Repacked %llu Dlgs, %llu Names, %llu Fonts, %llu Items, %llu Msgs, %llu Descs, %llu FCharts, %llu Docs, %llu Maps.",
-				tool.dlgs.size(), tool.names.size(), tool.fonts.size(), tool.items.size(), tool.msgs.size(), tool.descs.size(), tool.fcharts.size(), tool.docs.size(), tool.maps.size());
+			printf("Repacked %s.", tool.org_set.GetCountInfo().c_str());
 		}
 		else if (cmd == "sir-copy-valid") {
 			if (argc < 4) {
@@ -68,8 +66,7 @@ int main(int argc, const char* argv[])
 			SirTool tool;
 			if (!tool.CopyValid(ToAbsolutePath(argv[2]), ToAbsolutePath(argv[3])))
 				break;
-			printf("Copied %llu Dlgs, %llu Names, %llu Fonts, %llu Items, %llu Msgs, %llu Descs, %llu FCharts, %llu Docs, %llu Maps.",
-				tool.dlgs.size(), tool.names.size(), tool.fonts.size(), tool.items.size(), tool.msgs.size(), tool.descs.size(), tool.fcharts.size(), tool.docs.size(), tool.maps.size());
+			printf("Copied %s.", tool.org_set.GetCountInfo().c_str());
 		}
 		else if (cmd == "sir-generate-patch-chars") {
 			if (argc < 5) {
@@ -96,9 +93,7 @@ int main(int argc, const char* argv[])
 			SirTool tool;
 			if (!tool.Patch(ToAbsolutePath(argv[2]), ToAbsolutePath(argv[3]), argv[4], ToAbsolutePath(argv[5])))
 				break;
-			printf("Patched %llu Dlgs, %llu Names, %llu Fonts, %llu Items, %llu Msgs, %llu Descs, %llu FCharts, %llu Docs, %llu Maps.",
-				tool.patch_dlgs.size(), tool.patch_names.size(), tool.patch_fonts.size(), tool.patch_items.size(), 
-				tool.patch_msgs.size(), tool.patch_descs.size(), tool.patch_fcharts.size(), tool.patch_docs.size(), tool.patch_maps.size());
+			printf("Patched %s.", tool.patch_set.GetCountInfo().c_str());
 		}
 		else if (cmd == "exe-patch") {
 			if (argc < 6) {

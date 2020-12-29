@@ -5,7 +5,7 @@
 struct SirBase
 {
 	std::string filename;
-	char header_sig[4];
+	static constexpr char header_sig[] = "SIR1";
 };
 
 
@@ -356,6 +356,10 @@ struct SirFChart : public SirBase
 
 			std::wstring patch_text;
 
+			bool Equal(const Item& other) const {
+				return id1 == other.id1 && id2 == other.id2;
+			}
+
 			std::size_t Size() const
 			{
 				return 1 + id1.length()
@@ -458,6 +462,94 @@ struct SirMap : public SirBase
 					text.length() + 1 +
 					desc.length() + 1 +
 					sizeof(uint32_t) * 3;
+			}
+		};
+		std::string name;
+		std::vector<std::shared_ptr<Item>> items;
+
+		bool Equal(const Node& other) const {
+			return name == other.name;
+		}
+
+		std::size_t Size() const {
+			auto size = name.length() + 1;
+			for (auto& item : items)
+			{
+				size += item->Size();
+			}
+			return size;
+		}
+	};
+
+	std::vector<std::shared_ptr<Node>> nodes;
+};
+
+struct SirCredit : SirBase
+{
+	static constexpr char XmlExtension[] = ".credit.xml";
+
+	struct Node
+	{
+		struct Item
+		{
+			int id;
+			std::string text;
+			std::wstring patch_text;
+
+			bool Equal(const Item& other) const {
+				return id == other.id;
+			}
+
+			std::size_t Size() const {
+				return text.length() + 1;
+			}
+		};
+		std::string name;
+		std::vector<std::shared_ptr<Item>> items;
+
+		bool Equal(const Node& other) const {
+			return name == other.name;
+		}
+
+		std::size_t Size() const {
+			auto size = name.length() + 1;
+			for (auto& item : items)
+			{
+				size += item->Size();
+			}
+			return size;
+		}
+	};
+
+	std::vector<std::shared_ptr<Node>> nodes;
+};
+
+struct SirRoom : SirBase
+{
+	static constexpr char XmlExtension[] = ".room.xml";
+
+	struct Node
+	{
+		struct Item
+		{
+			std::string id;
+			std::string text;
+			std::wstring patch_text;
+			std::string key;
+			std::string in;
+			std::string out;
+
+			bool Equal(const Item& other) const {
+				return id == other.id;
+			}
+
+			std::size_t Size() const {
+				return
+					id.length() + 1 +
+					text.length() + 1 +
+					key.length() + 1 +
+					in.length() + 1 + 
+					out.length() + 1;
 			}
 		};
 		std::string name;

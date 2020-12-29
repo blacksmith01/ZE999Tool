@@ -14,4 +14,6 @@ public:
 	static std::shared_ptr<SirFChart> ReadFChart(fs::path file_path);
 	static std::shared_ptr<SirDoc> ReadDoc(fs::path file_path);
 	static std::shared_ptr<SirMap> ReadMap(fs::path file_path);
+	static std::shared_ptr<SirCredit> ReadCredit(fs::path file_path);
+	static std::shared_ptr<SirRoom> ReadRoom(fs::path file_path);
 };

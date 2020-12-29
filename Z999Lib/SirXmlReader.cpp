@@ -4,7 +4,7 @@ std::shared_ptr<SirDlg> SirXmlReader::ReadDlg(fs::path file_path)
 {
 	auto sir = std::make_shared<SirDlg>();
 	sir->filename = file_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
 	rapidxml::xml_document<char> doc;
@@ -46,7 +46,7 @@ std::shared_ptr<SirName> SirXmlReader::ReadName(fs::path file_path)
 {
 	auto sir = std::make_shared<SirName>();
 	sir->filename = file_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
 	rapidxml::xml_document<char> doc;
@@ -93,7 +93,7 @@ std::shared_ptr<SirFont> SirXmlReader::ReadFont(fs::path xmlfile_path, fs::path 
 {
 	auto sir = std::make_shared<SirFont>();
 	sir->filename = xmlfile_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	std::vector<uint8_t> png_buffers[2];
 	PngReader::Read(default_png_file_path, png_buffers[0]);
@@ -199,7 +199,7 @@ std::shared_ptr<SirItem> SirXmlReader::ReadItem(fs::path file_path)
 {
 	auto sir = std::make_shared<SirItem>();
 	sir->filename = file_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
 	rapidxml::xml_document<char> doc;
@@ -264,7 +264,7 @@ std::shared_ptr<SirMsg> SirXmlReader::ReadMsg(fs::path file_path)
 {
 	auto sir = std::make_shared<SirMsg>();
 	sir->filename = file_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
 	rapidxml::xml_document<char> doc;
@@ -328,7 +328,7 @@ std::shared_ptr<SirDesc> SirXmlReader::ReadDesc(fs::path file_path)
 {
 	auto sir = std::make_shared<SirDesc>();
 	sir->filename = file_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
 	rapidxml::xml_document<char> doc;
@@ -416,7 +416,7 @@ std::shared_ptr<SirFChart> SirXmlReader::ReadFChart(fs::path file_path)
 {
 	auto sir = std::make_shared<SirFChart>();
 	sir->filename = file_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
 	rapidxml::xml_document<char> doc;
@@ -506,7 +506,7 @@ std::shared_ptr<SirDoc> SirXmlReader::ReadDoc(fs::path file_path)
 {
 	auto sir = std::make_shared<SirDoc>();
 	sir->filename = file_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
 	rapidxml::xml_document<char> doc;
@@ -561,7 +561,7 @@ std::shared_ptr<SirMap> SirXmlReader::ReadMap(fs::path file_path)
 {
 	auto sir = std::make_shared<SirMap>();
 	sir->filename = file_path.stem().stem().string();
-	memcpy(sir->header_sig, "SIR1", 4);
+	
 
 	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
 	rapidxml::xml_document<char> doc;
@@ -604,6 +604,114 @@ std::shared_ptr<SirMap> SirXmlReader::ReadMap(fs::path file_path)
 				}
 				else if (strcmp(attr_item->name(), "unknown3") == 0) {
 					item->unknowns[2] = atoi(attr_item->value());
+				}
+				attr_item = attr_item->next_attribute();
+			}
+
+			n->items.push_back(item);
+			item_node = item_node->next_sibling();
+		}
+
+		sir->nodes.push_back(n);
+		node_node = node_node->next_sibling();
+	}
+
+	return sir;
+}
+
+std::shared_ptr<SirCredit> SirXmlReader::ReadCredit(fs::path file_path)
+{
+	auto sir = std::make_shared<SirCredit>();
+	sir->filename = file_path.stem().stem().string();
+
+
+	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
+	rapidxml::xml_document<char> doc;
+	doc.parse<0>(xmlFile.data());
+
+	auto node_sir = doc.first_node();
+	auto node_nodes = node_sir->first_node();
+	auto node_node = node_nodes->first_node();
+	while (node_node != nullptr) {
+		auto n = std::make_shared<SirCredit::Node>();
+		auto attr_node = node_node->first_attribute();
+		while (attr_node != nullptr) {
+			if (strcmp(attr_node->name(), "name") == 0) {
+				n->name = utf8_to_mbs(attr_node->value());
+			}
+			attr_node = attr_node->next_attribute();
+		}
+
+		auto item_node = node_node->first_node();
+		while (item_node != nullptr) {
+			auto item = std::make_shared<SirCredit::Node::Item>();
+
+			auto attr_item = item_node->first_attribute();
+			while (attr_item != nullptr) {
+				if (strcmp(attr_item->name(), "id") == 0) {
+					item->id = atoi(attr_item->value());
+				}
+				else if (strcmp(attr_item->name(), "text") == 0) {
+					item->patch_text = utf8_to_wcs(attr_item->value());
+					item->text = wcs_to_mbs(item->patch_text, "");
+				}
+				attr_item = attr_item->next_attribute();
+			}
+
+			n->items.push_back(item);
+			item_node = item_node->next_sibling();
+		}
+
+		sir->nodes.push_back(n);
+		node_node = node_node->next_sibling();
+	}
+
+	return sir;
+}
+
+std::shared_ptr<SirRoom> SirXmlReader::ReadRoom(fs::path file_path)
+{
+	auto sir = std::make_shared<SirRoom>();
+	sir->filename = file_path.stem().stem().string();
+
+	rapidxml::file<char> xmlFile(file_path.string().c_str()); // Default template is char
+	rapidxml::xml_document<char> doc;
+	doc.parse<0>(xmlFile.data());
+
+	auto node_sir = doc.first_node();
+	auto node_nodes = node_sir->first_node();
+	auto node_node = node_nodes->first_node();
+	while (node_node != nullptr) {
+		auto n = std::make_shared<SirRoom::Node>();
+		auto attr_node = node_node->first_attribute();
+		while (attr_node != nullptr) {
+			if (strcmp(attr_node->name(), "name") == 0) {
+				n->name = utf8_to_mbs(attr_node->value());
+			}
+			attr_node = attr_node->next_attribute();
+		}
+
+		auto item_node = node_node->first_node();
+		while (item_node != nullptr) {
+			auto item = std::make_shared<SirRoom::Node::Item>();
+
+			auto attr_item = item_node->first_attribute();
+			while (attr_item != nullptr) {
+				if (strcmp(attr_item->name(), "id") == 0) {
+					item->id = utf8_to_mbs(attr_item->value());
+				}
+				else if (strcmp(attr_item->name(), "text") == 0) {
+					item->patch_text = utf8_to_wcs(attr_item->value());
+					item->text = wcs_to_mbs(item->patch_text, "");
+				}
+				else if (strcmp(attr_item->name(), "key") == 0) {
+					item->key = utf8_to_mbs(attr_item->value());
+				}
+				else if (strcmp(attr_item->name(), "in") == 0) {
+					item->in = utf8_to_mbs(attr_item->value());
+				}
+				else if (strcmp(attr_item->name(), "out") == 0) {
+					item->out = utf8_to_mbs(attr_item->value());
 				}
 				attr_item = attr_item->next_attribute();
 			}
